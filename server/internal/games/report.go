@@ -35,6 +35,9 @@ func Calculate(r Run, b *Run) (Report, error) {
 		return Report{}, err
 	}
 	p := Report{RunID: r.ID, GameID: r.GameID, RulesVersion: *r.RulesVersion, CalculationVersion: "v1", Difficulty: r.Difficulty, Config: r.Config, Source: r.Source, Survey: r.Survey, Status: r.Status, FinishReason: r.FinishReason, PerformedAt: r.PerformedAt, Metrics: metrics, Units: map[string]string{}, Limitations: []string{"not_medical", "client_timing"}}
+	if r.Survey != nil {
+		p.Limitations = append(p.Limitations, "survey_timing")
+	}
 	for key := range metrics {
 		p.Units[key] = Unit(key)
 	}
@@ -72,6 +75,9 @@ func Fingerprint(r Report) string {
 }
 func Facts(r Report) []domain.Fact {
 	facts := []domain.Fact{{ID: "run_outcome", Category: "observations", Text: fmt.Sprintf("Игра %s; сложность %s; исход %s, причина %s.", r.GameID, r.Difficulty, r.Status, r.FinishReason)}}
+	if domain.ValidSurvey(r.Survey) {
+		facts = append(facts, domain.Fact{ID: "survey", Category: "observations", Text: fmt.Sprintf("Сохранённый опрос: сон %.2f ч; усталость %.2f/10; стресс %.2f/10; настроение %.2f/10 (выше — лучше).", *r.Survey.SleepHours, *r.Survey.Fatigue, *r.Survey.Stress, *r.Survey.Mood)})
+	}
 	keys := []string{}
 	for key := range r.Metrics {
 		keys = append(keys, key)
@@ -93,7 +99,7 @@ func Facts(r Report) []domain.Fact {
 			}
 		}
 	}
-	texts := map[string]string{"not_medical": "Игровые показатели не являются диагнозом или медицинской консультацией.", "client_timing": "Времена получены от локального клиента; сервер проверяет согласованность событий, а не подлинность измерений.", "synthetic": "Это синтетические демонстрационные данные.", "incomplete": "Прохождение прервано; частичные показатели не сравниваются с завершёнными.", "no_baseline": "Предыдущего сопоставимого прохождения нет; сравнение отсутствует."}
+	texts := map[string]string{"not_medical": "Игровые показатели не являются диагнозом или медицинской консультацией.", "client_timing": "Времена получены от локального клиента; сервер проверяет согласованность событий, а не подлинность измерений.", "survey_timing": "Опрос скопирован из сохранённого черновика; время его заполнения неизвестно и не обязательно совпадает со временем игры.", "synthetic": "Это синтетические демонстрационные данные.", "incomplete": "Прохождение прервано; частичные показатели не сравниваются с завершёнными.", "no_baseline": "Предыдущего сопоставимого прохождения нет; сравнение отсутствует."}
 	for _, key := range r.Limitations {
 		facts = append(facts, domain.Fact{ID: key, Category: "limitations", Text: texts[key]})
 	}

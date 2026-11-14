@@ -42,6 +42,50 @@ func TestGameSurveySnapshotAndReplay(t *testing.T) {
 	}
 }
 
+func TestGameExplanationUsesSavedSurveyAndTimingLimit(t *testing.T) {
+	r := setup(t)
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"done": true, "message": map[string]string{"role": "assistant", "content": `{"observations":["survey"],"comparisons":[],"limitations":[]}`}})
+	}))
+	t.Cleanup(remote.Close)
+	client, err := model.NewClient(remote.URL, "qwen3:8b", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.h = New(r.s, client)
+	in := testutil.GameInput("pairs")
+	sleep, fatigue, stress, mood := 8.0, 0.0, 2.0, 7.0
+	in.Survey = &domain.Survey{SleepHours: &sleep, Fatigue: &fatigue, Stress: &stress, Mood: &mood}
+	body, _ := json.Marshal(in)
+	path := "/api/v1/profiles/" + r.p.ID + "/game-runs"
+	run := decode[games.Run](t, request(r.h, "POST", path, string(body)), 201)
+	type explanationResponse struct {
+		Status      string              `json:"status"`
+		Explanation *domain.Explanation `json:"explanation"`
+	}
+	result := decode[explanationResponse](t, request(r.h, "POST", "/api/v1/game-runs/"+run.ID+"/explanation", ""), 200)
+	if result.Status != "ready" || result.Explanation == nil || len(result.Explanation.Observations) != 1 || result.Explanation.Observations[0].ID != "survey" || !strings.Contains(result.Explanation.Observations[0].Text, "усталость 0.00/10") {
+		t.Fatal(result)
+	}
+	var timing, medical bool
+	for _, fact := range result.Explanation.Limitations {
+		timing = timing || fact.ID == "survey_timing"
+		medical = medical || fact.ID == "not_medical"
+	}
+	if !timing || !medical {
+		t.Fatal("mandatory limitations missing", result.Explanation.Limitations)
+	}
+	// A legacy game without a survey must reject that fact rather than invent values.
+	in.Survey = nil
+	in.ClientRunID = "123e4567-e89b-42d3-a456-426614174002"
+	body, _ = json.Marshal(in)
+	legacy := decode[games.Run](t, request(r.h, "POST", path, string(body)), 201)
+	result = decode[explanationResponse](t, request(r.h, "POST", "/api/v1/game-runs/"+legacy.ID+"/explanation", ""), 200)
+	if result.Status != "invalid" || result.Explanation != nil {
+		t.Fatal("missing survey was inferred", result)
+	}
+}
+
 func gameRig(t *testing.T) *rig {
 	r := setup(t)
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
