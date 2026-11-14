@@ -6,6 +6,8 @@ local_settings.json
 *.db
 *.sqlite
 .venv/
+__pycache__/
+*.pyc
 .superpowers/
 server/data/
 *.db-wal

@@ -121,6 +121,20 @@ python tests/export_pack_integration.py 'C:\path\to\Godot_v4.7-stable_win64_cons
 python tests/run_real_server_integration.py "C:\path\to\Godot_v4.7-stable_win64_console.exe" "C:\path\to\zuma.exe"
 ```
 
+Если Ollama запущена и `qwen3:8b` уже установлена, отдельная проверка настоящей
+модели использует только синтетический опрос и временную базу, не скачивая модель:
+
+```powershell
+python tests/run_model_integration.py "builds\windows\zuma-server.exe"
+```
+
+Она проверяет статус объяснения, обязательные ограничения и повторное чтение
+отчёта. При недоступной модели проверка сообщает, что результат не подтверждён;
+основное приложение при этом продолжает работать без модели. Сценарий проверки
+можно проверить без модели командой `python tests/test_model_probe.py
+builds/windows/zuma-server.exe`: в этом случае используется только тестовая
+замена Ollama, и это не проверка настоящей модели.
+
 Не храните реальные медицинские данные, секреты, сборки и веса модели в Git.
 Результаты заданий — описательные показатели, не диагноз.
 Англоязычный черновик описания для команды: [Space Apps submission draft](docs/space-apps-submission-en.md).
