@@ -110,3 +110,54 @@ func TestGameBackfillInvalidatesExplanation(t *testing.T) {
 		t.Fatal("stale explanation")
 	}
 }
+
+func TestLegacyAndGameExplanationShareSlot(t *testing.T) {
+	for _, legacyFirst := range []bool{true, false} {
+		name := "game_first"
+		if legacyFirst {
+			name = "legacy_first"
+		}
+		t.Run(name, func(t *testing.T) {
+			r := setup(t)
+			entered := make(chan struct{}, 2)
+			release := make(chan struct{})
+			remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				entered <- struct{}{}
+				<-release
+				http.Error(w, "unavailable", 503)
+			}))
+			defer remote.Close()
+			defer close(release)
+			client, _ := model.NewClient(remote.URL, "qwen3:8b", time.Second)
+			r.h = New(r.s, client)
+			old := r.save(t, testutil.SessionJSON)
+			body, _ := json.Marshal(testutil.GameInput("pairs"))
+			run := decode[games.Run](t, request(r.h, "POST", "/api/v1/profiles/"+r.p.ID+"/game-runs", string(body)), 201)
+			first, second := "/api/v1/game-runs/"+run.ID+"/explanation", "/api/v1/sessions/"+old.ID+"/explanation"
+			if legacyFirst {
+				first, second = second, first
+			}
+			done := make(chan *httptest.ResponseRecorder, 1)
+			go func() { done <- request(r.h, "POST", first, "") }()
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("generation did not enter")
+			}
+			busy := request(r.h, "POST", second, "")
+			if busy.Code != 409 {
+				t.Fatalf("expected shared-slot409, got%d", busy.Code)
+			}
+			// Let the first request reach its bounded timeout; report endpoints remain usable.
+			select {
+			case result := <-done:
+				if result.Code != 200 {
+					t.Fatal(result.Code)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("generation did not timeout")
+			}
+			decode[games.Report](t, request(r.h, "GET", "/api/v1/game-runs/"+run.ID+"/report", ""), 200)
+		})
+	}
+}

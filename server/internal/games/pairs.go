@@ -4,7 +4,7 @@ import "fmt"
 
 func replayPairs(v Input) (Metrics, string, error) {
 	var initial struct {
-		Cards []int `json:"cards"`
+		Cards Ints `json:"cards"`
 	}
 	if e := decodeInitial(v.Initial, &initial); e != nil {
 		return nil, "", e

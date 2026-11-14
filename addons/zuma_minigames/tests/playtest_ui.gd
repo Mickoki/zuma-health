@@ -50,11 +50,12 @@ func snapshot(name: String) -> void:
 
 func run_test() -> void:
 	Input.use_accumulated_input = false
-	create_timer(90).timeout.connect(func(): push_error("UI PLAYTEST TIMEOUT"); quit(2))
+	create_timer(300 if OS.get_cmdline_user_args().has("walkthrough") else 90).timeout.connect(func(): push_error("UI PLAYTEST TIMEOUT"); quit(2))
 	root.size = Vector2i(960, 540)
 	root.content_scale_size = Vector2i(960, 540)
 	root.title = "Zuma — проверка четырёх мини-игр"
 	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var walkthrough: bool = args.size() > 1 and args[1] == "walkthrough"
 	output = args[0] if not args.is_empty() else "user://minigames_screenshots"
 	DirAccess.make_dir_recursive_absolute(output)
 	demo = Demo.instantiate()
@@ -68,7 +69,7 @@ func run_test() -> void:
 	await process_frame
 	await snapshot("00-menu")
 	for game in ["fifteen", "pairs", "math", "chimp"]:
-		demo.difficulty_picker.select(2)
+		demo.difficulty_picker.select(1 if walkthrough else 2)
 		await click(demo.find_child("Game_" + game, true, false))
 		await snapshot(game + "-instructions")
 		var view = demo.module.view
@@ -88,9 +89,9 @@ func run_test() -> void:
 						break
 					await click(view.grid.get_child(index))
 			"pairs":
-				await create_timer(3.1).timeout
+				await create_timer(session.config.preview_ms / 1000.0 + 0.1).timeout
 				await snapshot("pairs-hidden")
-				for symbol in range(18):
+				for symbol in range(session.config.pairs):
 					var first: int = session.cards.find(symbol)
 					var second: int = session.cards.find(symbol, first + 1)
 					await click(view.grid.get_child(first))
@@ -123,7 +124,7 @@ func run_test() -> void:
 		await click(back)
 		assert(demo.menu.visible)
 	assert(results.size() == 4)
-	print("RENDERED_UI PASS four completed hard games at960x540 with mouse events; screenshots=", output)
+	print("RENDERED_UI PASS four completed ", "normal walkthrough" if walkthrough else "hard games", " at960x540; output=", output)
 	demo.queue_free()
 	await process_frame
 	quit(0)

@@ -17,6 +17,16 @@ func _init(storage_dir: String = "user://zuma_minigames") -> void:
 			return
 	_recover()
 	bindings = read_dict(root_dir.path_join("bindings.json"))
+	var clean: Dictionary = {}
+	for owner in bindings:
+		if owner is String and not owner.is_empty() and owner.length() <= 128 and _valid_route(bindings[owner]):
+			clean[owner] = bindings[owner]
+	if clean.size() != bindings.size():
+		_quarantine(root_dir.path_join("bindings.json"))
+		bindings = clean
+		if not clean.is_empty():
+			error = _write(root_dir.path_join("bindings.json"), clean)
+	_recover_sent()
 	pending() # Detect/quarantine damaged records at startup, before reporting readiness.
 	if warnings.is_empty() and not DirAccess.get_files_at(root_dir.path_join("corrupt")).is_empty():
 		warnings.append("В каталоге corrupt есть записи для восстановления; они не удалены")
@@ -62,6 +72,27 @@ func _quarantine(path: String) -> void:
 func _valid_record(record: Dictionary, id: String) -> bool:
 	return Wire.valid_uuid(id) and record.get("owner_key", "") is String and not str(record.get("owner_key", "")).is_empty() and record.get("payload") is Dictionary and record.payload.get("client_run_id") == id and record.payload.get("game_id") in ["fifteen", "pairs", "math", "chimp"]
 
+func _valid_route(value: Variant) -> bool:
+	return value is Dictionary and value.get("base_url") is String and Wire.valid_url(value.base_url) and value.get("profile_id") is String and Wire.valid_id(value.profile_id)
+
+func _valid_archive(value: Dictionary, id: String) -> bool:
+	return value.get("record") is Dictionary and _valid_record(value.record, id) and _valid_route(value.get("route")) and value.get("receipt") is Dictionary and value.receipt.get("client_run_id") == id and value.receipt.get("id") is String and Wire.valid_id(value.receipt.id) and value.receipt.get("profile_id") == value.route.profile_id
+
+func _recover_sent() -> void:
+	for name in DirAccess.get_files_at(root_dir.path_join("sent")):
+		if not name.ends_with(".json"):
+			continue
+		var id: String = name.trim_suffix(".json")
+		var path: String = root_dir.path_join("sent").path_join(name)
+		var archive: Dictionary = read_dict(path)
+		if _valid_archive(archive, id):
+			continue
+		_quarantine(path)
+		if archive.get("record") is Dictionary and _valid_record(archive.record, id):
+			var restored: Error = _write(root_dir.path_join("pending").path_join(name), archive.record)
+			if restored != OK:
+				warnings.append("Не удалось вернуть неподтверждённую запись в очередь: " + id)
+
 func _recover() -> void:
 	for sub in ["pending", "routes", "sent", ""]:
 		var folder: String = root_dir.path_join(sub)
@@ -74,6 +105,10 @@ func _recover() -> void:
 			var valid: bool = not data.is_empty()
 			if sub == "pending":
 				valid = _valid_record(data, target.get_file().trim_suffix(".json"))
+			elif sub == "routes":
+				valid = _valid_route(data)
+			elif sub == "sent":
+				valid = _valid_archive(data, target.get_file().trim_suffix(".json"))
 			if valid and not FileAccess.file_exists(target):
 				if DirAccess.rename_absolute(path, target) != OK:
 					warnings.append("Не удалось восстановить " + path)
@@ -89,8 +124,10 @@ func enqueue(owner: String, payload: Dictionary) -> Error:
 	if not _valid_record(record, id):
 		return ERR_INVALID_DATA
 	var archived: Dictionary = read_dict(root_dir.path_join("sent").path_join(id + ".json"))
-	if not archived.is_empty():
+	if _valid_archive(archived, id):
 		return OK if Wire.stringify(archived.get("record", {})) == Wire.stringify(record) else ERR_ALREADY_EXISTS
+	if FileAccess.file_exists(root_dir.path_join("sent").path_join(id + ".json")):
+		_quarantine(root_dir.path_join("sent").path_join(id + ".json"))
 	var result: Error = _write(root_dir.path_join("pending").path_join(id + ".json"), record)
 	if result == OK and bindings.has(owner):
 		var route: Dictionary = freeze_route(record)
@@ -112,8 +149,10 @@ func pending() -> Array:
 			_quarantine(path)
 			continue
 		var sent: Dictionary = read_dict(root_dir.path_join("sent").path_join(name))
-		if sent.get("receipt") is Dictionary and sent.receipt.get("client_run_id") == id and Wire.valid_id(str(sent.receipt.get("id", ""))):
+		if _valid_archive(sent, id):
 			continue
+		if FileAccess.file_exists(root_dir.path_join("sent").path_join(name)):
+			_quarantine(root_dir.path_join("sent").path_join(name))
 		records.append(record)
 	return records
 
@@ -139,8 +178,10 @@ func freeze_route(record: Dictionary) -> Dictionary:
 	var path: String = root_dir.path_join("routes").path_join(id + ".json")
 	if FileAccess.file_exists(path):
 		var route: Dictionary = read_dict(path)
-		return route if Wire.valid_id(str(route.get("profile_id", ""))) and Wire.valid_url(str(route.get("base_url", ""))) else {}
-	if not bindings.has(record.owner_key):
+		if _valid_route(route):
+			return route
+		_quarantine(path)
+	if not _valid_route(bindings.get(record.owner_key)):
 		return {}
 	var route: Dictionary = bindings[record.owner_key].duplicate(true)
 	return route if _write(path, route) == OK else {}
@@ -153,8 +194,10 @@ func mark_sent(record: Dictionary, receipt: Dictionary) -> Error:
 	var archive: Dictionary = {"record": record, "receipt": receipt, "route": route}
 	var destination: String = root_dir.path_join("sent").path_join(id + ".json")
 	var previous: Dictionary = read_dict(destination)
-	if not previous.is_empty() and previous.get("receipt", {}).get("id") == receipt.id:
+	if _valid_archive(previous, id) and previous.receipt.id == receipt.id:
 		return OK
+	if FileAccess.file_exists(destination) and not _valid_archive(previous, id):
+		_quarantine(destination)
 	var result: Error = _write(destination, archive)
 	if result != OK:
 		return result

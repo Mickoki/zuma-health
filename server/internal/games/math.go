@@ -9,7 +9,7 @@ type Question struct {
 	Op      string `json:"op"`
 	A       *int   `json:"a"`
 	B       *int   `json:"b"`
-	Options []int  `json:"options"`
+	Options Ints   `json:"options"`
 }
 
 func mathAnswer(q Question, difficulty string) (int, string, error) {
@@ -165,6 +165,9 @@ func replayMath(v Input) (Metrics, string, error) {
 		default:
 			return nil, "", fmt.Errorf("invalid math event")
 		}
+	}
+	if active && *v.DurationMS >= deadline {
+		return nil, "", fmt.Errorf("overdue question requires timeout before finish")
 	}
 	terminal := ""
 	if !active && shown == 20 {

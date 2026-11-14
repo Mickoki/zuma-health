@@ -36,8 +36,8 @@ func abs(n int) int {
 }
 func replayFifteen(v Input) (Metrics, string, error) {
 	var initial struct {
-		Board    []int `json:"board"`
-		Scramble []int `json:"scramble"`
+		Board    Ints `json:"board"`
+		Scramble Ints `json:"scramble"`
 	}
 	if e := decodeInitial(v.Initial, &initial); e != nil {
 		return nil, "", e

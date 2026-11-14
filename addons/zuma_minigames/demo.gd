@@ -1,6 +1,7 @@
 extends Control
 
 const Module = preload("res://addons/zuma_minigames/module.gd")
+const Rules = preload("res://addons/zuma_minigames/core/rules.gd")
 var module
 var menu: ScrollContainer
 var status: Label
@@ -10,6 +11,7 @@ var profile_name: LineEdit
 var difficulty_picker: OptionButton
 var profiles: Array = []
 var selected_profile: String = ""
+var _local_owner: String = "demo-local"
 
 func _ready() -> void:
 	theme = preload("res://addons/zuma_minigames/theme.tres")
@@ -104,11 +106,17 @@ func _ready() -> void:
 	module.delivery_changed.connect(_delivery)
 	module.module_exit_requested.connect(_show_menu)
 	module.run_finished.connect(func(_payload): _refresh_count())
-	module.configure({"owner_key": "demo-local"})
+	_prepare_local_owner()
+	module.configure({"owner_key": _local_owner})
 	_refresh_count()
 	_load_profiles()
 
 func _launch(game: String) -> void:
+	var displayed: String = "" if profile_picker.selected <= 0 else profiles[profile_picker.selected - 1].id
+	if displayed != module.options.profile_id:
+		_restore_selection()
+		status.text = "Выбранный профиль не применён. Повторите выбор перед игрой."
+		return
 	var error: Error = module.start_game(game, ["easy", "normal", "hard"][difficulty_picker.selected])
 	if error != OK:
 		status.text = "Не удалось открыть игру: " + str(error)
@@ -131,15 +139,17 @@ func _load_profiles() -> void:
 	profile_picker.add_item("Без серверного профиля")
 	for profile in profiles:
 		profile_picker.add_item(profile.display_name)
-		if profile.id == selected_profile:
-			profile_picker.select(profile_picker.item_count - 1)
+	_restore_selection()
 	status.text = "Сервер доступен. Выберите профиль для новых игр."
 
 func _select_profile(index: int) -> void:
 	var profile: String = "" if index == 0 else profiles[index - 1].id
-	var owner: String = "demo-local" if profile.is_empty() else "profile:" + profile
+	if profile.is_empty():
+		_prepare_local_owner()
+	var owner: String = _local_owner if profile.is_empty() else "profile:" + profile
 	var error: Error = module.configure({"owner_key": owner, "profile_id": profile})
 	if error != OK:
+		_restore_selection()
 		status.text = "Не удалось сменить профиль (код %d). Дождитесь отправки или устраните ошибку записи." % error
 		return
 	selected_profile = profile
@@ -153,21 +163,50 @@ func _create_profile() -> void:
 	if not response.ok:
 		status.text = "Профиль не создан: " + str(response.get("error", "ошибка"))
 		return
-	selected_profile = response.data.id
-	var error: Error = module.configure({"owner_key": "profile:" + selected_profile, "profile_id": selected_profile})
-	status.text = "Профиль создан." if error == OK else "Профиль создан, но привязка не сохранена: " + str(error)
-	_load_profiles()
+	var created_id: String = response.data.id
+	var error: Error = module.configure({"owner_key": "profile:" + created_id, "profile_id": created_id})
+	if error == OK:
+		selected_profile = created_id
+	else:
+		_restore_selection()
+	await _load_profiles()
+	status.text = "Профиль создан и выбран." if error == OK else "Профиль создан, но не выбран (код %d). Действующим остался прежний профиль." % error
 
 func _bind_local() -> void:
 	if selected_profile.is_empty():
 		status.text = "Сначала выберите серверный профиль."
 		return
-	var error: Error = module.bind_owner("demo-local", selected_profile)
+	var error: Error = module.bind_owner(_local_owner, selected_profile)
 	if error != OK:
 		status.text = "Локальный владелец уже связан с другим профилем либо очередь недоступна (код %d)." % error
 		return
 	status.text = "Локальные записи явно привязаны к выбранному профилю."
+	_prepare_local_owner() # Future no-profile runs must never inherit this binding.
 	module.retry_pending()
+
+func _restore_selection() -> void:
+	selected_profile = module.options.profile_id
+	profile_picker.select(0)
+	if selected_profile.is_empty():
+		return
+	for i in range(profiles.size()):
+		if profiles[i].id == selected_profile:
+			profile_picker.select(i + 1)
+			return
+	profiles.append({"id": selected_profile, "display_name": "Текущий профиль " + selected_profile.left(8)})
+	profile_picker.add_item(profiles.back().display_name)
+	profile_picker.select(profiles.size())
+
+func _prepare_local_owner() -> void:
+	var path: String = module.outbox.root_dir.path_join("demo-owner.json")
+	var saved: Dictionary = module.outbox.read_dict(path)
+	if saved.get("owner_key") is String and saved.owner_key.begins_with("demo-local") and saved.owner_key.length() <= 128:
+		_local_owner = saved.owner_key
+	if module.outbox.bindings.has(_local_owner):
+		_local_owner = "demo-local:" + Rules.uuid()
+	var error: Error = module.outbox._write(path, {"owner_key": _local_owner}, true)
+	if error != OK and status != null:
+		status.text = "Не удалось сохранить локального владельца. Результаты не будут переназначены."
 
 func _delivery(_id: String, state: String, message: String) -> void:
 	status.text = message.left(250)

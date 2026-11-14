@@ -118,3 +118,62 @@ func TestGodotGeneratedRuns(t *testing.T) {
 		})
 	}
 }
+
+func TestMathCannotAbortPastUnresolvedDeadline(t *testing.T) {
+	for _, ms := range []int64{8000, 60000, 60001} {
+		v := testutil.GameInput("math")
+		v.Status = "aborted"
+		v.FinishReason = "user_exit"
+		v.DurationMS = testutil.P(ms)
+		v.Events = []games.Event{{Kind: "show", TMS: testutil.P(int64(0)), Index: testutil.P(0)}, {Kind: "finish", TMS: testutil.P(ms)}}
+		if _, e := games.Validate(v, time.Now()); e == nil {
+			t.Errorf("abort at%d accepted without mandatory timeout", ms)
+		}
+	}
+}
+
+func TestNullArrayElementsRejected(t *testing.T) {
+	for _, game := range []string{"fifteen", "pairs", "math", "chimp"} {
+		t.Run(game, func(t *testing.T) {
+			v := testutil.GameInput(game)
+			if game == "chimp" {
+				b, _ := json.Marshal(v)
+				var raw map[string]any
+				json.Unmarshal(b, &raw)
+				events := raw["events"].([]any)
+				positions := events[0].(map[string]any)["positions"].([]any)
+				positions[0] = nil
+				b, _ = json.Marshal(raw)
+				var decoded games.Input
+				e := json.Unmarshal(b, &decoded)
+				if e == nil {
+					_, e = games.Validate(decoded, time.Now())
+				}
+				if e == nil {
+					t.Fatal("null position accepted")
+				}
+				return
+			}
+			var initial map[string]any
+			json.Unmarshal(v.Initial, &initial)
+			switch game {
+			case "fifteen":
+				board := initial["board"].([]any)
+				for i, x := range board {
+					if x == float64(0) {
+						board[i] = nil
+						break
+					}
+				}
+			case "pairs":
+				initial["cards"].([]any)[0] = nil
+			case "math":
+				initial["questions"].([]any)[0].(map[string]any)["options"].([]any)[0] = nil
+			}
+			v.Initial, _ = json.Marshal(initial)
+			if _, e := games.Validate(v, time.Now()); e == nil {
+				t.Fatal("null integer interpreted as zero")
+			}
+		})
+	}
+}

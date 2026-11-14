@@ -26,8 +26,30 @@ type Event struct {
 	Kind                   string `json:"kind"`
 	TMS                    *int64 `json:"t_ms"`
 	Index                  *int   `json:"index,omitempty"`
-	Positions              []int  `json:"positions,omitempty"`
+	Positions              Ints   `json:"positions,omitempty"`
 	hasIndex, hasPositions bool
+}
+
+// Ints rejects JSON null elements instead of silently treating them as zero.
+type Ints []int
+
+func (values *Ints) UnmarshalJSON(data []byte) error {
+	var items []*int
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	if items == nil {
+		return fmt.Errorf("integer array cannot be null")
+	}
+	decoded := make(Ints, len(items))
+	for i, item := range items {
+		if item == nil {
+			return fmt.Errorf("integer array element %d cannot be null", i)
+		}
+		decoded[i] = *item
+	}
+	*values = decoded
+	return nil
 }
 
 func (e *Event) UnmarshalJSON(data []byte) error {

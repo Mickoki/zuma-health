@@ -43,7 +43,16 @@ func _ready() -> void:
 	var heading := Label.new()
 	heading.text = TITLES[game_id] + "  /  " + {"easy": "ЛЕГКО", "normal": "ОБЫЧНО", "hard": "СЛОЖНО"}[difficulty]
 	heading.add_theme_font_size_override("font_size", 25)
-	column.add_child(heading)
+	var heading_row := HBoxContainer.new()
+	column.add_child(heading_row)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading_row.add_child(heading)
+	var source_label := Label.new()
+	source_label.name = "SourceLabel"
+	source_label.text = "Синтетические данные" if source == "synthetic" else "Локальное прохождение"
+	source_label.add_theme_font_size_override("font_size", 13)
+	source_label.add_theme_color_override("font_color", Color("f2c46e") if source == "synthetic" else Color("a1bbc8"))
+	heading_row.add_child(source_label)
 	help_label = Label.new()
 	help_label.text = INSTRUCTIONS[game_id] + " Потеря фокуса прерывает попытку."
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
