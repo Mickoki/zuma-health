@@ -1,0 +1,10 @@
+.godot/
+.superpowers/
+server/data/
+*.db
+*.db-wal
+*.db-shm
+*.exe
+*.test
+*.gguf
+server/coverage.out
