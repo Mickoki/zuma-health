@@ -9,6 +9,7 @@ func _initialize() -> void:
 func run_tests() -> void:
 	var module = Module.new()
 	root.add_child(module)
+	assert(module.configure({"storage_dir": "user://module_tests/" + str(Time.get_ticks_usec()), "source": "synthetic", "auto_upload": false}) == OK)
 	module.run_finished.connect(func(payload: Dictionary): results.append(payload))
 	for game in ["fifteen", "pairs", "math", "chimp"]:
 		assert(module.start_game(game, "easy") == OK)

@@ -61,7 +61,7 @@ func _ready() -> void:
 	column.add_child(center)
 	grid = GridContainer.new()
 	grid.add_theme_constant_override("h_separation", 5)
-	grid.add_theme_constant_override("v_separation", 5)
+	grid.add_theme_constant_override("v_separation", 4)
 	center.add_child(grid)
 	result_label = Label.new()
 	result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -118,6 +118,13 @@ func _build_grid() -> void:
 		button.name = "Cell%d" % index
 		button.custom_minimum_size = {"fifteen": Vector2(75, 58), "pairs": Vector2(60, 40), "math": Vector2(180, 60), "chimp": Vector2(60, 40)}[game_id]
 		button.add_theme_font_size_override("font_size", 22)
+		if game_id in ["pairs", "chimp"]:
+			button.add_theme_font_size_override("font_size", 20)
+			for state in ["normal", "hover", "pressed", "disabled"]:
+				var style: StyleBox = theme.get_stylebox(state, "Button").duplicate()
+				style.content_margin_top = 2
+				style.content_margin_bottom = 2
+				button.add_theme_stylebox_override(state, style)
 		button.pressed.connect(_choose.bind(index))
 		grid.add_child(button)
 
@@ -188,7 +195,8 @@ func _finish_once() -> void:
 	question_label.visible = false
 	skip_button.visible = false
 	next_button.visible = false
-	result_label.text = {"completed": "Завершено", "failed": "Достигнут лимит ошибок", "aborted": "Попытка прервана"}[session.result.status] + " · " + session.result.finish_reason + "\n"
+	var reasons: Dictionary = {"solved": "Задача решена", "questions_done": "Все примеры пройдены", "time_limit": "Время вышло", "target_reached": "Целевой уровень достигнут", "mistake_limit": "Лимит ошибок", "user_exit": "Выход из игры", "focus_lost": "Окно потеряло фокус", "host_removed": "Модуль закрыт", "recording_limit": "Достигнут предел записи"}
+	result_label.text = {"completed": "Завершено", "failed": "Игра окончена", "aborted": "Попытка прервана"}[session.result.status] + " · " + reasons.get(session.result.finish_reason, "") + "\n"
 	var parts: PackedStringArray = []
 	for key in session.summary():
 		parts.append("%s: %s" % [key, session.summary()[key]])
