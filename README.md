@@ -84,8 +84,9 @@ python tests/run_client_integration.py "C:\path\to\Godot_v4.7-stable_win64_conso
 Если уже собраны `builds/windows/Zuma-integrated.exe` и
 `builds/windows/zuma-server.exe`, для локального запуска откройте PowerShell в
 корне проекта, выполните `cd server`, затем `..\builds\windows\zuma-server.exe`
-и оставьте окно сервера открытым. После этого запустите клиент
-`builds/windows/Zuma-integrated.exe`. При таком запуске база находится в
+и оставьте окно сервера открытым. Затем в другом окне PowerShell из корня проекта
+запустите `./builds/windows/Zuma-integrated.exe` или откройте этот файл в
+проводнике. При таком запуске база находится в
 `server/data/`. Сборки исключены из Git и при передаче исходников создаются заново.
 Для сборки сервера из папки `server` выполните
 `go build -o ../builds/windows/zuma-server.exe ./cmd/zuma` после создания папки
