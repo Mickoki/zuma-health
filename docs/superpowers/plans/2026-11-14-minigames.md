@@ -1,6 +1,6 @@
 # Zuma Minigames Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Four portable Godot games, durable offline delivery, compatible Go storage/replay/reports/Ollama.
 **Architecture:** Addon scenes and local rule engine emit immutable event logs; Go independently replays them. New game-runs endpoints coexist with legacy sessions.
@@ -42,46 +42,46 @@
 
 ## Task 1 — Pure Go game contract and replay
 
-- [ ] Write tests for hand-checked completed and aborted logs for all four games; invalid board/move/pair timing/math option/deadline/chimp sequence; missing numeric fields, timestamps and limits. Known fixtures: pairs9 perfect→9 attempts/0 errors; math all20 correct→100%; chimp maximum18; fifteen reverse30 scramble→30 moves solved.
-- [ ] `go test ./internal/games` must fail for missing API.
-- [ ] Implement types/defaults and four replayers. Strict per-game initial/events, exactly configured values, exact terminal condition. Config canonicalized and report metric units explicit.
-- [ ] `go test ./...` must pass. Commit.
+- [x] Write tests for hand-checked completed and aborted logs for all four games; invalid board/move/pair timing/math option/deadline/chimp sequence; missing numeric fields, timestamps and limits. Known fixtures: pairs9 perfect→9 attempts/0 errors; math all20 correct→100%; chimp maximum18; fifteen reverse30 scramble→30 moves solved.
+- [x] `go test ./internal/games` must fail for missing API.
+- [x] Implement types/defaults and four replayers. Strict per-game initial/events, exactly configured values, exact terminal condition. Config canonicalized and report metric units explicit.
+- [x] `go test ./...` must pass. Commit.
 
 ## Task 2 — Storage, migration, comparison
 
-- [ ] Tests: migrate populated schema1 (profile/session/ready explanation), reopen; game UUID replay/conflict/concurrency; baseline by time/game/config/source/eligible outcome; chimp loss vs loss, aborted excluded.
-- [ ] Observe missing methods/schema failures.
-- [ ] Implement schema2 tables/indexes and transactional storage. Canonical JSON eliminates object-key order dependence. Build game comparison and server-authored facts; unavailable deltas null.
-- [ ] Full Go suite PASS; commit.
+- [x] Tests: migrate populated schema1 (profile/session/ready explanation), reopen; game UUID replay/conflict/concurrency; baseline by time/game/config/source/eligible outcome; chimp loss vs loss, aborted excluded.
+- [x] Observe missing methods/schema failures.
+- [x] Implement schema2 tables/indexes and transactional storage. Canonical JSON eliminates object-key order dependence. Build game comparison and server-authored facts; unavailable deltas null.
+- [x] Full Go suite PASS; commit.
 
 ## Task 3 — API, HTML, model reuse
 
-- [ ] Tests: four new run HTTP workflows, old limit256KiB vs new1MiB, filters/pagination, invalid payloads, HTML escaping, backfill cache invalidation; common generation slot and model failure/cancellation.
-- [ ] Observe missing routes failing.
-- [ ] Implement routes/HTML. Refactor old Explain to ExplainFacts retaining old signature and behavior. Recheck latest fingerprint after generation; preserve good cached explanation on failure.
-- [ ] Full Go suite/vet/build PASS; extend OpenAPI with precise per-game union/examples. Commit.
+- [x] Tests: four new run HTTP workflows, old limit256KiB vs new1MiB, filters/pagination, invalid payloads, HTML escaping, backfill cache invalidation; common generation slot and model failure/cancellation.
+- [x] Observe missing routes failing.
+- [x] Implement routes/HTML. Refactor old Explain to ExplainFacts retaining old signature and behavior. Recheck latest fingerprint after generation; preserve good cached explanation on failure.
+- [x] Full Go suite/vet/build PASS; extend OpenAPI with precise per-game union/examples. Commit.
 
 ## Task 4 — Godot game logic and UI
 
-- [ ] Write headless test script for generators and deterministic action traces, state transitions and terminal behavior. First run fails on missing addon scripts.
-- [ ] Implement local generators with scoped RNG and no immediate layout repetition. Rules mirror documented mechanics while Go stays independently implemented.
-- [ ] Implement own Control-based four scenes, shared view and module API/signals; instructions/start/result/restart/exit, difficulty, preview/deadlines/hide numbers, focus-loss abortion. Russian UI works960×540 and1280×720.
-- [ ] Godot import/check/headless tests pass; generated fixtures accepted by Go. Copy addon only into isolated temporary project and test without host dependencies. Commit.
+- [x] Write headless test script for generators and deterministic action traces, state transitions and terminal behavior. First run fails on missing addon scripts.
+- [x] Implement local generators with scoped RNG and no immediate layout repetition. Rules mirror documented mechanics while Go stays independently implemented.
+- [x] Implement own Control-based four scenes, shared view and module API/signals; instructions/start/result/restart/exit, difficulty, preview/deadlines/hide numbers, focus-loss abortion. Russian UI works960×540 and1280×720.
+- [x] Godot import/check/headless tests pass; generated fixtures accepted by Go. Copy addon only into isolated temporary project and test without host dependencies. Commit.
 
 ## Task 5 — Durable outbox and demo integration
 
-- [ ] Headless filesystem/HTTP tests: unknown owner profile, disk error, damaged/incomplete file, restart, 201/200 receipt, lost response, 409/422 retention, profile change and sequential worker.
-- [ ] Observe missing outbox/transport failures.
-- [ ] Implement per-run temp→flush→close→rename storage, separate explicit owner binding, immutable payload, sent receipt and recovery. Delivery errors visible. No tight retry loop.
-- [ ] Demo profile selection/creation, explicit binding, pending counter/retry, local results independent of network. Full Godot→API→SQLite tests for four games; offline then restart/retry produces one run. Commit.
+- [x] Headless filesystem/HTTP tests: unknown owner profile, disk error, damaged/incomplete file, restart, 201/200 receipt, lost response, 409/422 retention, profile change and sequential worker.
+- [x] Observe missing outbox/transport failures.
+- [x] Implement per-run temp→flush→close→rename storage, separate explicit owner binding, immutable payload, sent receipt and recovery. Delivery errors visible. No tight retry loop.
+- [x] Demo profile selection/creation, explicit binding, pending counter/retry, local results independent of network. Full Godot→API→SQLite tests for four games; offline then restart/retry produces one run. Commit.
 
 ## Task 6 — Runtime verification, docs, independent review
 
-- [ ] Run/render and play all four scenes via scripted UI and native UI inspection, including960×540; capture evidence. Unit logic alone is insufficient.
-- [ ] Real qwen3:8b explanation for a new-game report; no-model scenario keeps complete flow available. Validate report facts and printed HTML.
-- [ ] Final gofmt/vet/test/build(CGO0), Godot import/headless/integration; document exact commands/evidence and limitations.
-- [ ] README/API/examples explain copying addon, signals, configurations, outbox binding/recovery and backup/migration.
-- [ ] One fresh read-only whole-branch reviewer; fix material findings with regression tests. Completion audit against all spec sections, commit final evidence. No further approvals needed within scope.
+- [x] Run/render and play all four scenes via scripted UI and native UI inspection, including960×540; capture evidence. Unit logic alone is insufficient.
+- [x] Real qwen3:8b explanation for a new-game report; no-model scenario keeps complete flow available. Validate report facts and printed HTML.
+- [x] Final gofmt/vet/test/build(CGO0), Godot import/headless/integration; document exact commands/evidence and limitations.
+- [x] README/API/examples explain copying addon, signals, configurations, outbox binding/recovery and backup/migration.
+- [x] One fresh read-only whole-branch reviewer; fix material findings with regression tests. Completion audit against all spec sections, commit final evidence. No further approvals needed within scope.
 
 ## Rulings and execution
 

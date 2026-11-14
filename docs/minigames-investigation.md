@@ -78,3 +78,7 @@ JSON/HTML-отчёты и объяснения Qwen3 8B через Ollama. Ст�
 - https://docs.godotengine.org/en/stable/classes/class_time.html
 - https://docs.godotengine.org/en/stable/classes/class_fileaccess.html
 - https://docs.godotengine.org/en/stable/classes/class_diraccess.html
+
+## Итог реализации
+
+Модуль и расширение сервера реализованы. Результаты проверок и ограничения: [minigames-verification.md](minigames-verification.md). Исходное исследование выше сохранено как исторический контекст.
