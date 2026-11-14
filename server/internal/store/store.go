@@ -119,6 +119,15 @@ func (s *Store) SaveSession(ctx context.Context, profileID string, input domain.
 	}
 	input.PerformedAt = input.PerformedAt.UTC()
 	input.ClientSessionID = strings.ToLower(input.ClientSessionID)
+	// Canonicalize signed numerical zero without changing caller-owned pointers.
+	survey := *input.Survey
+	for _, value := range []**float64{&survey.SleepHours, &survey.Fatigue, &survey.Stress, &survey.Mood} {
+		if **value == 0 {
+			zero := 0.0
+			*value = &zero
+		}
+	}
+	input.Survey = &survey
 	payload, err := json.Marshal(input)
 	if err != nil {
 		return domain.Session{}, false, err

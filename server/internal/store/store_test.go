@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Mickoki/zuma-health/server/internal/domain"
 	"github.com/Mickoki/zuma-health/server/internal/testutil"
+	"math"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -151,5 +152,21 @@ func TestExplanationFingerprint(t *testing.T) {
 	b, e := s.GetExplanation(ctx, v.ID, "two")
 	if e != nil || b != nil {
 		t.Fatal(b, e)
+	}
+}
+
+func TestSignedZeroReplay(t *testing.T) {
+	s, p := setup(t)
+	input := testutil.Input()
+	negativeZero := math.Copysign(0, -1)
+	input.Survey.Fatigue = &negativeZero
+	first := save(t, s, p.ID, input)
+	if !math.Signbit(*input.Survey.Fatigue) {
+		t.Fatal("store mutated caller input")
+	}
+	again := testutil.Input()
+	second, created, err := s.SaveSession(ctx, p.ID, again)
+	if err != nil || created || first.ID != second.ID {
+		t.Fatalf("signed zero is a numerical replay: created=%v err=%v", created, err)
 	}
 }

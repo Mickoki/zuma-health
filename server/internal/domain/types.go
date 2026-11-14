@@ -1,6 +1,12 @@
 package domain
 
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"time"
+)
 
 type Profile struct {
 	ID          string    `json:"id"`
@@ -14,9 +20,32 @@ type Survey struct {
 	Mood       *float64 `json:"mood"`
 }
 type Trial struct {
-	Outcome    string   `json:"outcome"`
-	ReactionMS *float64 `json:"reaction_ms,omitempty"`
+	Outcome            string   `json:"outcome"`
+	ReactionMS         *float64 `json:"reaction_ms,omitempty"`
+	reactionMSProvided bool
 }
+
+// UnmarshalJSON retains presence: null is different from omitting reaction_ms.
+func (t *Trial) UnmarshalJSON(data []byte) error {
+	type wire Trial
+	var value wire
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&value); err != nil {
+		return err
+	}
+	if dec.Decode(new(any)) != io.EOF {
+		return errors.New("extra JSON")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	_, value.reactionMSProvided = fields["reaction_ms"]
+	*t = Trial(value)
+	return nil
+}
+
 type Reaction struct {
 	Trials []Trial `json:"trials"`
 }

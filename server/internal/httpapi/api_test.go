@@ -213,3 +213,90 @@ func TestFailedRegenerationPreservesExplanation(t *testing.T) {
 		t.Fatal(a)
 	}
 }
+
+func TestNullReactionTimeRejectedForNonValidOutcome(t *testing.T) {
+	r := setup(t)
+	for _, outcome := range []string{"missed", "premature"} {
+		body := strings.Replace(testutil.SessionJSON, `{"outcome":"missed"}`, `{"outcome":"`+outcome+`","reaction_ms":null}`, 1)
+		w := request(r.h, "POST", "/api/v1/profiles/"+r.p.ID+"/sessions", body)
+		if w.Code != 422 {
+			t.Errorf("%s reaction_ms:null accepted: status %d", outcome, w.Code)
+		}
+	}
+}
+
+func TestInterruptedRegenerationPreservesExplanation(t *testing.T) {
+	for _, mode := range []string{"cancel", "timeout"} {
+		t.Run(mode, func(t *testing.T) {
+			r := setup(t)
+			var block atomic.Bool
+			entered := make(chan struct{}, 1)
+			stopped := make(chan struct{}, 1)
+			remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				io.Copy(io.Discard, req.Body)
+				if block.Load() {
+					entered <- struct{}{}
+					<-req.Context().Done()
+					stopped <- struct{}{}
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]any{"done": true, "message": map[string]string{"role": "assistant", "content": `{"observations":["reaction_median"],"comparisons":[],"limitations":[]}`}})
+			}))
+			defer remote.Close()
+			m, _ := model.NewClient(remote.URL, "qwen3:8b", 150*time.Millisecond)
+			r.h = New(r.s, m)
+			s := r.save(t, testutil.SessionJSON)
+			path := "/api/v1/sessions/" + s.ID
+			ready := decode[struct {
+				Status string `json:"status"`
+			}](t, request(r.h, "POST", path+"/explanation", ""), 200)
+			if ready.Status != "ready" {
+				t.Fatal(ready)
+			}
+			block.Store(true)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			req := httptest.NewRequest("POST", path+"/explanation", nil).WithContext(ctx)
+			w := httptest.NewRecorder()
+			done := make(chan struct{})
+			go func() { defer close(done); r.h.ServeHTTP(w, req) }()
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("generation not started")
+			}
+			if mode == "cancel" {
+				cancel()
+			}
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				t.Fatal("request not interrupted")
+			}
+			select {
+			case <-stopped:
+			case <-time.After(time.Second):
+				t.Fatal("Ollama call not cancelled")
+			}
+			if mode == "timeout" {
+				v := decode[struct {
+					Status string `json:"status"`
+				}](t, w, 200)
+				if v.Status != "unavailable" {
+					t.Fatal(v)
+				}
+			}
+			rep := decode[domain.Report](t, request(r.h, "GET", path+"/report", ""), 200)
+			if rep.Explanation == nil || rep.Explanation.Status != "ready" {
+				t.Fatal("good explanation lost")
+			}
+			block.Store(false)
+			v := decode[struct {
+				Status string `json:"status"`
+			}](t, request(r.h, "POST", path+"/explanation", ""), 200)
+			if v.Status != "ready" {
+				t.Fatal("slot not released", v)
+			}
+		})
+	}
+}

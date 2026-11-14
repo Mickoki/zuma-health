@@ -56,7 +56,7 @@ func ValidateSession(s SessionInput, now time.Time) map[string]string {
 					e[key+".reaction_ms"] = "required number between 1 and 10000"
 				}
 			case "premature", "missed":
-				if t.ReactionMS != nil {
+				if t.ReactionMS != nil || t.reactionMSProvided {
 					e[key+".reaction_ms"] = "must be absent for this outcome"
 				}
 			default:

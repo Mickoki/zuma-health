@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -143,5 +144,62 @@ func TestStatus(t *testing.T) {
 	s := c.Status(context.Background())
 	if !s.Available || !s.ModelInstalled {
 		t.Fatal(s)
+	}
+}
+
+func TestInFlightCancellation(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	stopped := make(chan struct{}, 1)
+	var count atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		if count.Add(1) == 1 {
+			entered <- struct{}{}
+			<-r.Context().Done()
+			stopped <- struct{}{}
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"done": true, "message": map[string]string{"role": "assistant", "content": valid}})
+	}))
+	defer srv.Close()
+	c, _ := NewClient(srv.URL, "qwen3:8b", time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, e := c.Explain(ctx, report()); done <- e }()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("request not started")
+	}
+	cancel()
+	select {
+	case e := <-done:
+		if !errors.Is(e, context.Canceled) {
+			t.Fatal(e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client did not cancel")
+	}
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("Ollama request context not cancelled")
+	}
+	v, e := c.Explain(context.Background(), report())
+	if e != nil || v.Status != "ready" {
+		t.Fatalf("slot not reusable: %s %v", v.Status, e)
+	}
+}
+
+func TestExternalConnectionsDenied(t *testing.T) {
+	c, err := NewClient("http://127.0.0.1:11434", "qwen3:8b", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://192.0.2.1:11434/api/version", nil)
+	_, err = c.http.Do(req)
+	if err == nil || !strings.Contains(err.Error(), "external connections disabled") {
+		t.Fatalf("transport did not reject external connection: %v", err)
 	}
 }
