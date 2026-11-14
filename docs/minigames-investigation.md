@@ -56,6 +56,10 @@ JSON/HTML-отчёты и объяснения Qwen3 8B через Ollama. Ст�
 
 - Установленный Godot поддерживает CLI `--scene`, `--headless`, `--script`,
   `--check-only`, `--quit-after`: доступны запуск демо и проверка логики движком.
+- Существующий `res://server/examples/client.gd` проверен непосредственно
+  Godot 4.7.2 командой `--headless --path <repo> --script
+  res://server/examples/client.gd --check-only`: exit 0, ошибок типов/синтаксиса нет.
+  Это проверка старого примера API, а не прохождение будущих мини-игр.
 - Документация Time рекомендует монотонные get_ticks_msec/get_ticks_usec для
   длительностей; системные часы подходят только для меток календарного времени.
 - FileAccess поддерживает постоянное хранение в user://, flush и close;
