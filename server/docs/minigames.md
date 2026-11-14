@@ -1,0 +1,111 @@
+# API независимых мини-игр
+
+Дополнение `/api/v1` не меняет старые `/sessions`: опрос и прежние реакция/память
+для новых игр не нужны. Полная схема и четыре синтетических примера — в
+[OpenAPI](openapi.yaml), JSON-файлы — в [examples/game_runs](../examples/game_runs/).
+
+## Пути
+
+| Метод / путь | Назначение |
+| --- | --- |
+| POST /profiles/{profile_id}/game-runs | 201 новая запись, 200 идентичный повтор, 409 изменённый UUID |
+| GET /profiles/{profile_id}/game-runs?game_id=pairs&limit=20&offset=0 | история всех исходов; фильтр game_id необязателен |
+| GET /game-runs/{id} | исходные данные и серверные метаданные |
+| GET /game-runs/{id}/report | числовые показатели, сравнение, ограничения и актуальное объяснение |
+| GET /game-runs/{id}/report.html | экранированный HTML для печати |
+| POST /game-runs/{id}/explanation | отдельная генерация ready/unavailable/invalid без тела запроса |
+
+Все пути таблицы имеют префикс `/api/v1`. Профили создаются существующим
+POST /api/v1/profiles. Неизвестный профиль — 404, неправильный ID — 400.
+Лимиты: новый POST1MiB / 10000 событий /24 часа; старые запросы по-прежнему256KiB.
+JSON400, media415, лимит413, семантически неверное прохождение422.
+
+## Envelope и события
+
+Обязательные поля: client_run_id (UUID клиента), game_id (fifteen/pairs/math/chimp),
+rules_version=1, difficulty (easy/normal/hard), config, source (observed/synthetic),
+performed_at (RFC3339 начала), status (completed/failed/aborted), finish_reason,
+duration_ms, initial, events. Все числовые входы целые; null не равен нулю.
+Конфигурация должна точно совпадать с выбранным уровнем; неизвестные поля/версии
+и лишние события отклоняются. t_ms не убывают и находятся в пределах длительности.
+Последнее событие `{kind:"finish", t_ms:duration_ms}` обязательно.
+
+| Игра | initial | События до finish |
+| --- | --- | --- |
+| fifteen | board[16] с 0–15, scramble с индексами перемешивающих ходов | move: index плитки 0–15 |
+| pairs | cards: каждый символ 0…pairs-1 ровно дважды | flip: index карточки |
+| math | questions[20]: op/add/sub/mul/div, a, b, options[4] | show: index задачи 0–19; answer: index варианта 0–3; skip; timeout |
+| chimp | {} | show: positions, индексы клеток в порядке чисел; click: index клетки 0–39 |
+
+У каждого события есть kind и t_ms. В show/math нет positions; в show/chimp
+нет index. У skip/timeout/finish нет дополнительных полей. Первые show/math
+и show/chimp имеют t_ms=0. Длительности считает клиент монотонными часами,
+сервер проверяет согласованность. Сам факт реального измерения этим не доказан.
+
+Config:
+
+- fifteen: shuffle_moves=30/90/180.
+- pairs: pairs=9/12/18, preview_ms=5000/4000/3000, mismatch_ms=700.
+- math: question_count=20, time_limit_ms=60000, question_limit_ms=8000/6000/4000.
+- chimp: columns=8, rows=5, start_count=5/6/9, target_count=12/18/24, mistake_limit=4/3/2.
+
+Математика: easy — 10add/10sub, операнды0–30; normal — 7add/7sub с0–75
+и6mul с0–18; hard — по5 каждого оператора, add/sub0–150, mul2–30,
+div с делителем2–18 и частным2–30. Вычитание неотрицательное, деление нацело.
+Опции уникальны, -1000…1000, ровно одна верная. Пулы992/6042/23880;
+перестановки сложения/умножения — один ключ, внутри партии повторов нет.
+
+Поздний answer не принимается: граница дедлайна принадлежит timeout.
+Timeout может быть записан позже из-за задержки кадра, но не раньше дедлайна.
+Незавершённый просроченный пример нельзя скрыть, пометив всю игру aborted.
+20 разрешённых задач завершают questions_done; окончание общего времени —
+time_limit, даже при нуле правильных ответов. Будущие не показанные задачи
+не входят в skipped.
+
+## Хранение, сравнение и модель
+
+Сервер атомарно сохраняет исходный журнал после проверки. UUID уникален внутри
+профиля для всех game_id. Объектные ключи/UTC-представление нормализуются;
+повтор не создаёт запись. Вычисления воспроизводятся из исходных событий.
+
+Report содержит metrics и units. Нет нужных данных — null, а не0. Доли
+accuracy_percent считаются по полным попыткам пар / принятым ответам math.
+Времена в мс; correct_per_minute — правильные ответы / полная длительность *60000.
+Chimp показывает максимальный успешно завершённый размер, null без успехов.
+
+Baseline — ближайшее строго более раннее сопоставимое прохождение одного
+профиля, игры, версии, сложности, config и source. Для первых трёх игр —
+completed; для chimp победа сравнивается с победой, ошибка по лимиту — с
+таким же исходом. Aborted не сравнивается, но виден в истории. Deltas = текущие
+значения минус baseline, точность — в процентных пунктах. Перемешивание пятнашек
+не гарантирует одинаковое оптимальное расстояние, сравнения описательные.
+
+Миграция SQLite1→2 добавляет game_runs/game_run_explanations и индексы,
+не меняя прежние таблицы и данные. Перед обновлением остановите старый сервер
+и сделайте полную копию его каталога SQLite. Старый бинарник не откроет schema2;
+для отката нужна резервная копия, а не ручное понижение user_version.
+
+Qwen3:8b через Ollama выбирает только разрешённые fact_ids; текст и числа
+формирует Go. Ограничения source/client_timing/not_medical добавляет сервер.
+Общий слот генерации со старым API: одновременный запрос получает409.
+Числовой отчёт не вызывает модель и доступен без неё. Fingerprint включает
+baseline, поэтому backfill скрывает устаревшее объяснение. Сбой не стирает
+готовое актуальное объяснение. Endpoint может ждать до120с; клиенту нужен
+таймаут больше, например140с.
+
+## Пример PowerShell
+
+Из server, при работающем сервере:
+
+```powershell
+$base = 'http://127.0.0.1:8080'
+$profile = Invoke-RestMethod -Method Post "$base/api/v1/profiles" -ContentType 'application/json' -Body '{"display_name":"Synthetic game demo"}'
+$payload = Get-Content -LiteralPath examples/game_runs/pairs.json -Raw
+$run = Invoke-RestMethod -Method Post "$base/api/v1/profiles/$($profile.id)/game-runs" -ContentType 'application/json' -Body $payload
+Invoke-RestMethod "$base/api/v1/game-runs/$($run.id)/report"
+# Тот же payload/UUID можно повторить безопасно.
+Invoke-RestMethod -Method Post "$base/api/v1/game-runs/$($run.id)/explanation" -TimeoutSec 140
+```
+
+Для нового реального прохождения используйте UUID и исходные события клиента,
+а не редактируйте демонстрационные данные под вид реального измерения.

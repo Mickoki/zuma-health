@@ -57,6 +57,11 @@ API без авторизации предназначен для доверен
 
 ## API и Godot
 
+Независимые прохождения четырёх новых игр обслуживаются через `/game-runs`,
+без обязательного старого опроса/реакции/памяти. [Контракт и примеры](docs/minigames.md),
+[переносимый Godot-модуль](https://github.com/Mickoki/zuma-health/tree/feat/minigames-module/addons/zuma_minigames). SQLite автоматически
+мигрирует в schema2; перед обновлением остановите старый сервер и сделайте копию базы.
+
 - [OpenAPI 3.1](docs/openapi.yaml): пути, схемы, статусы, ограничения.
 - [GDScript](examples/client.gd): асинхронный пример Godot 4 desktop.
 - [PowerShell](examples/requests.ps1): полный синтетический сценарий.
