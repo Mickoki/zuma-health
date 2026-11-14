@@ -78,6 +78,12 @@ def run():
             print(result.stderr, end="", file=sys.stderr)
             if result.returncode or "MINIGAMES REAL SERVER PASS" not in result.stdout or "ERROR:" in result.stdout + result.stderr:
                 raise RuntimeError("Minigames integration verification failed")
+            result = subprocess.run([godot, "--headless", "--path", str(ROOT), "--script", "res://tests/minigames_completed_server.gd"],
+                                    env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45)
+            print(result.stdout, end="")
+            print(result.stderr, end="", file=sys.stderr)
+            if result.returncode or "COMPLETED MINIGAMES REAL SERVER PASS" not in result.stdout or "ERROR:" in result.stdout + result.stderr:
+                raise RuntimeError("Completed minigames verification failed")
             print("REAL SERVER INTEGRATION TEST PASSED")
         finally:
             process.terminate()
