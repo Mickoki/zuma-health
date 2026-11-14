@@ -39,6 +39,7 @@ func New(s *store.Store, m *model.Client) http.Handler {
 	mux.HandleFunc("GET /api/v1/sessions/{id}/report", a.reportJSON)
 	mux.HandleFunc("GET /api/v1/sessions/{id}/report.html", a.reportHTML)
 	mux.HandleFunc("POST /api/v1/sessions/{id}/explanation", a.explain)
+	a.registerGames(mux)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { fail(w, 404, "not_found", "Endpoint not found.", nil) })
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
