@@ -58,6 +58,6 @@ submission closes on 15 November at 11:59 p.m. local time.
 The [2025 judging guidance](https://spaceapps-v2-staging.s3.amazonaws.com/media/documents/Final_Space_Apps_2025_Judging_Guidelines_for_web.pdf) mentioned a maximum seven-slide deck or 30-second
 video and unrestricted project links; those are useful preparation targets,
 but the team must confirm the applicable 2026 rules rather than assume last
-year's criteria remain unchanged. The team selected MIT for the project's own
-code; confirm that every rights holder agrees and review third-party dependency
-licenses and notices before offering the work publicly.
+year's criteria remain unchanged. MIT was selected for the project's own code;
+the user confirmed that all project rights holders agree. Third-party components
+retain their own licenses, and their notices should accompany distributions.

@@ -1,8 +1,8 @@
 # Third-party notices
 
-The project's own code is offered under the MIT license in `../LICENSE`,
-subject to confirmation by all rights holders. Third-party components retain
-their own licenses.
+The project's own code is offered under the MIT license in `../LICENSE`; the
+user confirmed that all project rights holders agree. Third-party components
+retain their own licenses.
 
 `godot-4.7-notices.txt` was generated from the official Godot 4.7.stable
 binary's `Engine.get_copyright_info()` and `Engine.get_license_info()`. It
@@ -16,5 +16,5 @@ dependencies, build targets or bundled assets change.
 
 Ollama and the optional Qwen model are separately installed; neither is bundled
 in this repository or the supplied client/server binaries. Check their own
-licenses and distribution terms if redistributing them. These notices are a
-technical inventory, not a determination that all authors have approved release.
+licenses and distribution terms if redistributing them. This is a technical
+inventory and should be reviewed again when the distributed components change.
