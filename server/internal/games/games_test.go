@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"github.com/Mickoki/zuma-health/server/internal/games"
 	"github.com/Mickoki/zuma-health/server/internal/testutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -88,5 +90,31 @@ func TestDefaultsIncreased(t *testing.T) {
 	c, _ := games.Defaults("chimp", "hard")
 	if p["pairs"] != 18 || f["shuffle_moves"] != 180 || c["target_count"] != 24 {
 		t.Fatal(p, f, c)
+	}
+}
+
+func TestGodotGeneratedRuns(t *testing.T) {
+	folder := os.Getenv("ZUMA_GODOT_FIXTURES")
+	if folder == "" {
+		t.Skip("set ZUMA_GODOT_FIXTURES to cross-check actual Godot exports")
+	}
+	files, err := filepath.Glob(filepath.Join(folder, "*.json"))
+	if err != nil || len(files) != 12 {
+		t.Fatalf("want12 exports, got%d: %v", len(files), err)
+	}
+	for _, file := range files {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			b, e := os.ReadFile(file)
+			if e != nil {
+				t.Fatal(e)
+			}
+			var in games.Input
+			if e = json.Unmarshal(b, &in); e != nil {
+				t.Fatal(e)
+			}
+			if _, e = games.Validate(in, time.Now()); e != nil {
+				t.Fatal(e)
+			}
+		})
 	}
 }
