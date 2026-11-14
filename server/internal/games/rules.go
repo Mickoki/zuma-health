@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Mickoki/zuma-health/server/internal/domain"
 	"io"
 	"reflect"
 	"regexp"
@@ -50,6 +51,9 @@ func shape(e Event, index, positions bool) bool {
 }
 func val(v float64) *float64 { return &v }
 func Validate(v Input, now time.Time) (Metrics, error) {
+	if v.Survey != nil && !domain.ValidSurvey(v.Survey) {
+		return nil, fmt.Errorf("invalid survey")
+	}
 	config, err := Defaults(v.GameID, v.Difficulty)
 	if err != nil {
 		return nil, err

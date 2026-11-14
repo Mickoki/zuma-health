@@ -34,7 +34,7 @@ func Calculate(r Run, b *Run) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	p := Report{RunID: r.ID, GameID: r.GameID, RulesVersion: *r.RulesVersion, CalculationVersion: "v1", Difficulty: r.Difficulty, Config: r.Config, Source: r.Source, Status: r.Status, FinishReason: r.FinishReason, PerformedAt: r.PerformedAt, Metrics: metrics, Units: map[string]string{}, Limitations: []string{"not_medical", "client_timing"}}
+	p := Report{RunID: r.ID, GameID: r.GameID, RulesVersion: *r.RulesVersion, CalculationVersion: "v1", Difficulty: r.Difficulty, Config: r.Config, Source: r.Source, Survey: r.Survey, Status: r.Status, FinishReason: r.FinishReason, PerformedAt: r.PerformedAt, Metrics: metrics, Units: map[string]string{}, Limitations: []string{"not_medical", "client_timing"}}
 	for key := range metrics {
 		p.Units[key] = Unit(key)
 	}

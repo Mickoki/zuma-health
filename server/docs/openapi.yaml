@@ -2820,6 +2820,11 @@ components:
             - hard
         config:
           type: object
+        survey:
+          description: Optional saved survey snapshot; older game runs can omit it.
+          anyOf:
+            - $ref: "#/components/schemas/Survey"
+            - type: "null"
         source:
           type: string
           enum:
@@ -2904,6 +2909,8 @@ components:
             - hard
         config:
           type: object
+        survey:
+          $ref: "#/components/schemas/Survey"
         source:
           type: string
           enum:
@@ -2997,6 +3004,8 @@ components:
           type: object
           additionalProperties:
             type: integer
+        survey:
+          $ref: "#/components/schemas/Survey"
         source:
           type: string
           enum:

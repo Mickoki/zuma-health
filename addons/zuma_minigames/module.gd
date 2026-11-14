@@ -15,7 +15,8 @@ const SCENES: Dictionary = {
 	"chimp": preload("res://addons/zuma_minigames/games/chimp.tscn")
 }
 var generator = Generator.new()
-var options: Dictionary = {"source": "observed", "owner_key": "local", "profile_id": "", "base_url": "http://127.0.0.1:8080", "storage_dir": "user://zuma_minigames", "auto_upload": true}
+var options: Dictionary = {"source": "observed", "owner_key": "local", "profile_id": "", "base_url": "http://127.0.0.1:8080", "storage_dir": "user://zuma_minigames", "auto_upload": true, "survey": {}}
+var run_survey: Dictionary = {}
 var view = null
 var outbox = null
 var transport = null
@@ -38,6 +39,15 @@ func configure(settings: Dictionary) -> Error:
 		return ERR_INVALID_PARAMETER
 	if not candidate.profile_id.is_empty() and not Wire.valid_id(candidate.profile_id):
 		return ERR_INVALID_PARAMETER
+	if not candidate.survey is Dictionary:
+		return ERR_INVALID_PARAMETER
+	if not candidate.survey.is_empty():
+		if candidate.survey.size() != 4:
+			return ERR_INVALID_PARAMETER
+		for key in ["sleep_hours", "fatigue", "stress", "mood"]:
+			var value: Variant = candidate.survey.get(key)
+			if not (value is int or value is float) or not is_finite(float(value)) or value < 0 or value > (24 if key == "sleep_hours" else 10):
+				return ERR_INVALID_PARAMETER
 	if not unsaved.is_empty() and (candidate.owner_key != options.owner_key or candidate.base_url != options.base_url or candidate.profile_id != options.profile_id):
 		return ERR_BUSY
 	var queue = Outbox.new(candidate.storage_dir)
@@ -45,7 +55,7 @@ func configure(settings: Dictionary) -> Error:
 		var bound: Error = queue.bind_owner(candidate.owner_key, candidate.profile_id, candidate.base_url)
 		if bound != OK:
 			return bound
-	options = candidate
+	options = candidate.duplicate(true)
 	outbox = queue
 	if transport == null:
 		transport = Transport.new()
@@ -61,6 +71,7 @@ func start_game(game: String, difficulty: String = "easy") -> Error:
 		cancel_game()
 		remove_child(view)
 		view.queue_free()
+	run_survey = options.survey.duplicate(true)
 	view = SCENES[game].instantiate()
 	view.difficulty = difficulty
 	view.generator = generator
@@ -91,6 +102,9 @@ func retry_pending() -> void:
 	_drain.call_deferred()
 
 func _on_finished(payload: Dictionary) -> void:
+	payload = payload.duplicate(true)
+	if not run_survey.is_empty():
+		payload["survey"] = run_survey.duplicate(true)
 	var stored: Error = ERR_CANT_CREATE if outbox == null else outbox.enqueue(options.owner_key, payload)
 	if stored != OK:
 		unsaved.append({"owner_key": options.owner_key, "payload": payload.duplicate(true)})
@@ -113,18 +127,22 @@ func bind_owner(owner: String, profile_id: String) -> Error:
 	return outbox.bind_owner(owner, profile_id, options.base_url)
 
 func _drain() -> void:
+	var unavailable_servers := {}
 	for record in outbox.pending():
 		var id: String = record.payload.client_run_id
 		var route: Dictionary = outbox.freeze_route(record)
 		if route.is_empty():
 			delivery_changed.emit(id, "unassigned", "Нет привязанного профиля или не удалось сохранить адрес доставки")
 			continue
+		if unavailable_servers.has(route.base_url):
+			delivery_changed.emit(id, "pending", "Ожидает подключения к серверу")
+			continue
 		delivery_changed.emit(id, "sending", "Отправка…")
 		var response: Dictionary = await transport.request(route.base_url, "/api/v1/profiles/%s/game-runs" % route.profile_id, HTTPClient.METHOD_POST, record.payload)
 		if not response.ok or response.status not in [200, 201]:
 			delivery_changed.emit(id, "pending", "Не отправлено: " + str(response.get("error", response.status)))
 			if response.status == 0 or response.status >= 500:
-				break # One unavailable server should not incur a timeout per queued result.
+				unavailable_servers[route.base_url] = true # Do not let one offline server block other routes.
 			continue
 		var receipt: Dictionary = response.data
 		if receipt.get("game_id") != record.payload.game_id or outbox.mark_sent(record, receipt) != OK:

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"github.com/Mickoki/zuma-health/server/internal/domain"
 	"github.com/Mickoki/zuma-health/server/internal/games"
 	"github.com/Mickoki/zuma-health/server/internal/model"
 	"github.com/Mickoki/zuma-health/server/internal/testutil"
@@ -11,6 +12,35 @@ import (
 	"testing"
 	"time"
 )
+
+func TestGameSurveySnapshotAndReplay(t *testing.T) {
+	r := gameRig(t)
+	in := testutil.GameInput("pairs")
+	sleep, fatigue, stress, mood := 8.0, 0.0, 2.0, 7.0
+	in.Survey = &domain.Survey{SleepHours: &sleep, Fatigue: &fatigue, Stress: &stress, Mood: &mood}
+	body, _ := json.Marshal(in)
+	path := "/api/v1/profiles/" + r.p.ID + "/game-runs"
+	run := decode[games.Run](t, request(r.h, "POST", path, string(body)), 201)
+	decode[games.Run](t, request(r.h, "POST", path, string(body)), 200)
+	report := decode[games.Report](t, request(r.h, "GET", "/api/v1/game-runs/"+run.ID+"/report", ""), 200)
+	if report.Survey == nil || *report.Survey.Fatigue != 0 || *report.Survey.SleepHours != 8 {
+		t.Fatal(report.Survey)
+	}
+	html := request(r.h, "GET", "/api/v1/game-runs/"+run.ID+"/report.html", "")
+	if !strings.Contains(html.Body.String(), "Сон: 8 ч") {
+		t.Fatal(html.Body.String())
+	}
+	stress = 3
+	changed, _ := json.Marshal(in)
+	if w := request(r.h, "POST", path, string(changed)); w.Code != 409 {
+		t.Fatal(w.Code)
+	}
+	stress = 11
+	invalid, _ := json.Marshal(in)
+	if w := request(r.h, "POST", path, string(invalid)); w.Code != 422 {
+		t.Fatal(w.Code)
+	}
+}
 
 func gameRig(t *testing.T) *rig {
 	r := setup(t)

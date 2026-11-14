@@ -15,6 +15,7 @@ type Input struct {
 	Difficulty   string          `json:"difficulty"`
 	Config       map[string]int  `json:"config"`
 	Source       string          `json:"source"`
+	Survey       *domain.Survey  `json:"survey,omitempty"`
 	PerformedAt  time.Time       `json:"performed_at"`
 	Status       string          `json:"status"`
 	FinishReason string          `json:"finish_reason"`
@@ -93,6 +94,7 @@ type Report struct {
 	Difficulty         string              `json:"difficulty"`
 	Config             map[string]int      `json:"config"`
 	Source             string              `json:"source"`
+	Survey             *domain.Survey      `json:"survey,omitempty"`
 	Status             string              `json:"status"`
 	FinishReason       string              `json:"finish_reason"`
 	PerformedAt        time.Time           `json:"performed_at"`

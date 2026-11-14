@@ -18,6 +18,16 @@ func ValidName(name string) bool {
 	return n >= 1 && n <= 100
 }
 
+func ValidSurvey(s *Survey) bool {
+	if s == nil {
+		return false
+	}
+	valid := func(v *float64, max float64) bool {
+		return v != nil && !math.IsNaN(*v) && !math.IsInf(*v, 0) && *v >= 0 && *v <= max
+	}
+	return valid(s.SleepHours, 24) && valid(s.Fatigue, 10) && valid(s.Stress, 10) && valid(s.Mood, 10)
+}
+
 func ValidateSession(s SessionInput, now time.Time) map[string]string {
 	e := map[string]string{}
 	if !uuid.MatchString(s.ClientSessionID) {
