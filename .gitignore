@@ -1,7 +1,13 @@
 .godot/
+builds/
+*.tmp
+.env
+local_settings.json
+*.db
+*.sqlite
+.venv/
 .superpowers/
 server/data/
-*.db
 *.db-wal
 *.db-shm
 *.exe
