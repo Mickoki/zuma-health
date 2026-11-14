@@ -29,6 +29,29 @@ CREATE TABLE explanations(
 PRAGMA user_version=1;
 `
 
+const gameSchema = `
+CREATE TABLE game_runs(
+ id TEXT PRIMARY KEY,
+ profile_id TEXT NOT NULL REFERENCES profiles(id),
+ client_run_id TEXT NOT NULL,
+ game_id TEXT NOT NULL,
+ performed_at TEXT NOT NULL,
+ comparison_key TEXT NOT NULL,
+ payload TEXT NOT NULL,
+ document TEXT NOT NULL,
+ UNIQUE(profile_id,client_run_id)
+);
+CREATE INDEX game_runs_history ON game_runs(profile_id,performed_at DESC,id DESC);
+CREATE INDEX game_runs_baseline ON game_runs(profile_id,comparison_key,performed_at DESC,id DESC);
+CREATE TABLE game_run_explanations(
+ run_id TEXT NOT NULL REFERENCES game_runs(id),
+ fingerprint TEXT NOT NULL,
+ document TEXT NOT NULL,
+ PRIMARY KEY(run_id,fingerprint)
+);
+PRAGMA user_version=2;
+`
+
 func (s *Store) migrate(ctx context.Context) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -39,11 +62,17 @@ func (s *Store) migrate(ctx context.Context) error {
 	if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return err
 	}
-	if version > 1 {
-		return fmt.Errorf("database schema %d is newer than supported version 1", version)
+	if version > 2 {
+		return fmt.Errorf("database schema %d is newer than supported version 2", version)
 	}
 	if version == 0 {
 		if _, err = tx.ExecContext(ctx, schema); err != nil {
+			return err
+		}
+		version = 1
+	}
+	if version == 1 {
+		if _, err = tx.ExecContext(ctx, gameSchema); err != nil {
 			return err
 		}
 	}
