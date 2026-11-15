@@ -1,0 +1,3562 @@
+openapi: 3.1.0
+info:
+  title: Zuma local backend
+  version: 1.1.0
+  description: Trusted local desktop API without authentication. No medical diagnosis. Install dependencies and
+    qwen3:8b before offline use. All server timestamps are UTC RFC3339. Sessions are immutable. Errors never
+    include internal details.
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /healthz:
+    get:
+      summary: Process liveness, independent of Ollama
+      responses:
+        "200":
+          description: Alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /readyz:
+    get:
+      summary: SQLite readiness, independent of Ollama
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/v1/model/status:
+    get:
+      summary: Bounded local Ollama and installed-model check
+      responses:
+        "200":
+          description: Availability is reported as data, including when Ollama is offline
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - available
+                  - model_installed
+                  - model
+                properties:
+                  available:
+                    type: boolean
+                  model_installed:
+                    type: boolean
+                  model:
+                    type: string
+  /api/v1/profiles:
+    get:
+      summary: Profiles, newest first by creation time then ID
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Profile page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Profile"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      summary: Create profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - display_name
+              properties:
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Trimmed name must not be blank
+            example:
+              display_name: Demo crew member
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/profiles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Profile details
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/profiles/{id}/sessions:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: History, descending performed_at then ID; empty array for existing profile without sessions
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Session page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      summary: Atomically save complete survey and both game results
+      description: client_session_id is a client-created UUID, unique per profile. Semantically identical retries
+        return 200 with the existing session, independent of key order and timestamp timezone. Changed data
+        with the same UUID returns 409. Missing fields/null values are not zero. Maximum body 256 KiB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+            example:
+              client_session_id: 123e4567-e89b-42d3-a456-426614174000
+              performed_at: 2026-01-02T12:00:00Z
+              protocol_version: reaction-memory-v1
+              source: synthetic
+              survey:
+                sleep_hours: 8
+                fatigue: 0
+                stress: 2
+                mood: 7
+              reaction:
+                trials:
+                  - outcome: valid
+                    reaction_ms: 200
+                  - outcome: valid
+                    reaction_ms: 300
+                  - outcome: missed
+              memory:
+                correct: 3
+                total: 4
+      responses:
+        "200":
+          description: Identical retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Stored source data and metadata
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/sessions/{id}/report:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Calculated report with current cached explanation, without calling Ollama
+      description: Baseline is the closest strictly earlier session of the same profile, protocol and source.
+        Backfilled sessions can change baseline; explanations with an old report fingerprint are omitted.
+        Without valid reaction trials, mean and median are null. No clinical scores or thresholds are used.
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/sessions/{id}/report.html:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Escaped Russian HTML report for viewing and printing
+      responses:
+        "200":
+          description: Printable HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/sessions/{id}/explanation:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      summary: Generate explanation separately; no request body
+      description: Default timeout 120 seconds. At most one generation globally; busy returns 409. HTTP 200 reports
+        ready, unavailable or invalid. Only ready explanations are saved. Failures do not erase a cached ready
+        explanation. Output consists solely of server-authored facts selected by the model, not free text.
+      responses:
+        "200":
+          description: Generation outcome
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - explanation
+                  - report_fingerprint
+                  - baseline_session_id
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ready
+                      - unavailable
+                      - invalid
+                  explanation:
+                    oneOf:
+                      - $ref: "#/components/schemas/Explanation"
+                      - type: "null"
+                  reason:
+                    type: string
+                    enum:
+                      - model_unavailable
+                      - model_invalid
+                      - report_changed
+                  report_fingerprint:
+                    type: string
+                    pattern: ^[0-9a-f]{64}$
+                  baseline_session_id:
+                    $ref: "#/components/schemas/NullableID"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/profiles/{id}/game-runs:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      summary: Atomically save one independent game run
+      description: No survey or legacy reaction/memory fields required. 201 new;200 semantically identical UUID
+        replay;409 changed data with same UUID per profile.1MiB limit; all events replayed before storage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameInput"
+            examples:
+              fifteen:
+                summary: Synthetic completed fifteen run from actual Godot rules
+                value:
+                  client_run_id: 94ff0304-75e0-448f-b0a8-1b0b9ebc5948
+                  config:
+                    shuffle_moves: 30
+                  difficulty: easy
+                  duration_ms: 3000
+                  events:
+                    - index: 14
+                      kind: move
+                      t_ms: 100
+                    - index: 15
+                      kind: move
+                      t_ms: 200
+                    - index: 11
+                      kind: move
+                      t_ms: 300
+                    - index: 10
+                      kind: move
+                      t_ms: 400
+                    - index: 9
+                      kind: move
+                      t_ms: 500
+                    - index: 8
+                      kind: move
+                      t_ms: 600
+                    - index: 4
+                      kind: move
+                      t_ms: 700
+                    - index: 5
+                      kind: move
+                      t_ms: 800
+                    - index: 6
+                      kind: move
+                      t_ms: 900
+                    - index: 10
+                      kind: move
+                      t_ms: 1000
+                    - index: 11
+                      kind: move
+                      t_ms: 1100
+                    - index: 15
+                      kind: move
+                      t_ms: 1200
+                    - index: 14
+                      kind: move
+                      t_ms: 1300
+                    - index: 10
+                      kind: move
+                      t_ms: 1400
+                    - index: 6
+                      kind: move
+                      t_ms: 1500
+                    - index: 5
+                      kind: move
+                      t_ms: 1600
+                    - index: 9
+                      kind: move
+                      t_ms: 1700
+                    - index: 13
+                      kind: move
+                      t_ms: 1800
+                    - index: 14
+                      kind: move
+                      t_ms: 1900
+                    - index: 10
+                      kind: move
+                      t_ms: 2000
+                    - index: 11
+                      kind: move
+                      t_ms: 2100
+                    - index: 7
+                      kind: move
+                      t_ms: 2200
+                    - index: 3
+                      kind: move
+                      t_ms: 2300
+                    - index: 2
+                      kind: move
+                      t_ms: 2400
+                    - index: 1
+                      kind: move
+                      t_ms: 2500
+                    - index: 5
+                      kind: move
+                      t_ms: 2600
+                    - index: 9
+                      kind: move
+                      t_ms: 2700
+                    - index: 13
+                      kind: move
+                      t_ms: 2800
+                    - index: 14
+                      kind: move
+                      t_ms: 2900
+                    - index: 15
+                      kind: move
+                      t_ms: 3000
+                    - kind: finish
+                      t_ms: 3000
+                  finish_reason: solved
+                  game_id: fifteen
+                  initial:
+                    board:
+                      - 1
+                      - 3
+                      - 4
+                      - 8
+                      - 9
+                      - 5
+                      - 7
+                      - 12
+                      - 2
+                      - 14
+                      - 10
+                      - 11
+                      - 13
+                      - 0
+                      - 6
+                      - 15
+                    scramble:
+                      - 14
+                      - 13
+                      - 9
+                      - 5
+                      - 1
+                      - 2
+                      - 3
+                      - 7
+                      - 11
+                      - 10
+                      - 14
+                      - 13
+                      - 9
+                      - 5
+                      - 6
+                      - 10
+                      - 14
+                      - 15
+                      - 11
+                      - 10
+                      - 6
+                      - 5
+                      - 4
+                      - 8
+                      - 9
+                      - 10
+                      - 11
+                      - 15
+                      - 14
+                      - 13
+                  performed_at: 2026-11-14T12:39:37Z
+                  rules_version: 1
+                  source: synthetic
+                  status: completed
+              pairs:
+                summary: Synthetic completed pairs run from actual Godot rules
+                value:
+                  client_run_id: bef65fae-205e-4be8-a3bc-4c42ad7a0808
+                  config:
+                    mismatch_ms: 700
+                    pairs: 9
+                    preview_ms: 5000
+                  difficulty: easy
+                  duration_ms: 6800
+                  events:
+                    - index: 3
+                      kind: flip
+                      t_ms: 5100
+                    - index: 15
+                      kind: flip
+                      t_ms: 5200
+                    - index: 2
+                      kind: flip
+                      t_ms: 5300
+                    - index: 16
+                      kind: flip
+                      t_ms: 5400
+                    - index: 11
+                      kind: flip
+                      t_ms: 5500
+                    - index: 17
+                      kind: flip
+                      t_ms: 5600
+                    - index: 0
+                      kind: flip
+                      t_ms: 5700
+                    - index: 9
+                      kind: flip
+                      t_ms: 5800
+                    - index: 6
+                      kind: flip
+                      t_ms: 5900
+                    - index: 12
+                      kind: flip
+                      t_ms: 6000
+                    - index: 4
+                      kind: flip
+                      t_ms: 6100
+                    - index: 7
+                      kind: flip
+                      t_ms: 6200
+                    - index: 8
+                      kind: flip
+                      t_ms: 6300
+                    - index: 14
+                      kind: flip
+                      t_ms: 6400
+                    - index: 1
+                      kind: flip
+                      t_ms: 6500
+                    - index: 10
+                      kind: flip
+                      t_ms: 6600
+                    - index: 5
+                      kind: flip
+                      t_ms: 6700
+                    - index: 13
+                      kind: flip
+                      t_ms: 6800
+                    - kind: finish
+                      t_ms: 6800
+                  finish_reason: solved
+                  game_id: pairs
+                  initial:
+                    cards:
+                      - 3
+                      - 7
+                      - 1
+                      - 0
+                      - 5
+                      - 8
+                      - 4
+                      - 5
+                      - 6
+                      - 3
+                      - 7
+                      - 2
+                      - 4
+                      - 8
+                      - 6
+                      - 0
+                      - 1
+                      - 2
+                  performed_at: 2026-11-14T12:39:37Z
+                  rules_version: 1
+                  source: synthetic
+                  status: completed
+              math:
+                summary: Synthetic completed math run from actual Godot rules
+                value:
+                  client_run_id: 27dd4bfa-6e4e-499b-bcd1-edc9337b8947
+                  config:
+                    question_count: 20
+                    question_limit_ms: 8000
+                    time_limit_ms: 60000
+                  difficulty: easy
+                  duration_ms: 2000
+                  events:
+                    - index: 0
+                      kind: show
+                      t_ms: 0
+                    - index: 3
+                      kind: answer
+                      t_ms: 100
+                    - index: 1
+                      kind: show
+                      t_ms: 100
+                    - index: 2
+                      kind: answer
+                      t_ms: 200
+                    - index: 2
+                      kind: show
+                      t_ms: 200
+                    - index: 3
+                      kind: answer
+                      t_ms: 300
+                    - index: 3
+                      kind: show
+                      t_ms: 300
+                    - index: 0
+                      kind: answer
+                      t_ms: 400
+                    - index: 4
+                      kind: show
+                      t_ms: 400
+                    - index: 1
+                      kind: answer
+                      t_ms: 500
+                    - index: 5
+                      kind: show
+                      t_ms: 500
+                    - index: 0
+                      kind: answer
+                      t_ms: 600
+                    - index: 6
+                      kind: show
+                      t_ms: 600
+                    - index: 1
+                      kind: answer
+                      t_ms: 700
+                    - index: 7
+                      kind: show
+                      t_ms: 700
+                    - index: 0
+                      kind: answer
+                      t_ms: 800
+                    - index: 8
+                      kind: show
+                      t_ms: 800
+                    - index: 2
+                      kind: answer
+                      t_ms: 900
+                    - index: 9
+                      kind: show
+                      t_ms: 900
+                    - index: 0
+                      kind: answer
+                      t_ms: 1000
+                    - index: 10
+                      kind: show
+                      t_ms: 1000
+                    - index: 1
+                      kind: answer
+                      t_ms: 1100
+                    - index: 11
+                      kind: show
+                      t_ms: 1100
+                    - index: 2
+                      kind: answer
+                      t_ms: 1200
+                    - index: 12
+                      kind: show
+                      t_ms: 1200
+                    - index: 2
+                      kind: answer
+                      t_ms: 1300
+                    - index: 13
+                      kind: show
+                      t_ms: 1300
+                    - index: 2
+                      kind: answer
+                      t_ms: 1400
+                    - index: 14
+                      kind: show
+                      t_ms: 1400
+                    - index: 0
+                      kind: answer
+                      t_ms: 1500
+                    - index: 15
+                      kind: show
+                      t_ms: 1500
+                    - index: 1
+                      kind: answer
+                      t_ms: 1600
+                    - index: 16
+                      kind: show
+                      t_ms: 1600
+                    - index: 3
+                      kind: answer
+                      t_ms: 1700
+                    - index: 17
+                      kind: show
+                      t_ms: 1700
+                    - index: 1
+                      kind: answer
+                      t_ms: 1800
+                    - index: 18
+                      kind: show
+                      t_ms: 1800
+                    - index: 2
+                      kind: answer
+                      t_ms: 1900
+                    - index: 19
+                      kind: show
+                      t_ms: 1900
+                    - index: 0
+                      kind: answer
+                      t_ms: 2000
+                    - kind: finish
+                      t_ms: 2000
+                  finish_reason: questions_done
+                  game_id: math
+                  initial:
+                    questions:
+                      - a: 3
+                        b: 18
+                        op: add
+                        options:
+                          - 25
+                          - 15
+                          - 20
+                          - 21
+                      - a: 0
+                        b: 7
+                        op: add
+                        options:
+                          - 1
+                          - 13
+                          - 7
+                          - 3
+                      - a: 27
+                        b: 3
+                        op: sub
+                        options:
+                          - 20
+                          - 28
+                          - 29
+                          - 24
+                      - a: 22
+                        b: 28
+                        op: add
+                        options:
+                          - 50
+                          - 48
+                          - 47
+                          - 60
+                      - a: 22
+                        b: 12
+                        op: sub
+                        options:
+                          - 8
+                          - 10
+                          - 7
+                          - 14
+                      - a: 5
+                        b: 13
+                        op: add
+                        options:
+                          - 18
+                          - 21
+                          - 17
+                          - 13
+                      - a: 7
+                        b: 20
+                        op: add
+                        options:
+                          - 33
+                          - 27
+                          - 29
+                          - 26
+                      - a: 13
+                        b: 27
+                        op: add
+                        options:
+                          - 40
+                          - 44
+                          - 39
+                          - 32
+                      - a: 22
+                        b: 27
+                        op: add
+                        options:
+                          - 50
+                          - 42
+                          - 49
+                          - 43
+                      - a: 26
+                        b: 23
+                        op: sub
+                        options:
+                          - 3
+                          - -1
+                          - 5
+                          - 1
+                      - a: 21
+                        b: 10
+                        op: sub
+                        options:
+                          - 17
+                          - 11
+                          - 14
+                          - 12
+                      - a: 19
+                        b: 25
+                        op: add
+                        options:
+                          - 36
+                          - 48
+                          - 44
+                          - 41
+                      - a: 26
+                        b: 25
+                        op: sub
+                        options:
+                          - -4
+                          - 6
+                          - 1
+                          - -5
+                      - a: 5
+                        b: 16
+                        op: add
+                        options:
+                          - 27
+                          - 19
+                          - 21
+                          - 23
+                      - a: 27
+                        b: 18
+                        op: sub
+                        options:
+                          - 9
+                          - 4
+                          - 3
+                          - 15
+                      - a: 17
+                        b: 11
+                        op: sub
+                        options:
+                          - 4
+                          - 6
+                          - 9
+                          - 7
+                      - a: 25
+                        b: 4
+                        op: sub
+                        options:
+                          - 15
+                          - 26
+                          - 22
+                          - 21
+                      - a: 7
+                        b: 30
+                        op: add
+                        options:
+                          - 36
+                          - 37
+                          - 40
+                          - 44
+                      - a: 16
+                        b: 14
+                        op: sub
+                        options:
+                          - 4
+                          - -1
+                          - 2
+                          - -4
+                      - a: 16
+                        b: 2
+                        op: sub
+                        options:
+                          - 14
+                          - 16
+                          - 15
+                          - 19
+                  performed_at: 2026-11-14T12:39:37Z
+                  rules_version: 1
+                  source: synthetic
+                  status: completed
+              chimp:
+                summary: Synthetic completed chimp run from actual Godot rules
+                value:
+                  client_run_id: 33107a17-e860-4c13-a262-011994ab70d8
+                  config:
+                    columns: 8
+                    mistake_limit: 4
+                    rows: 5
+                    start_count: 5
+                    target_count: 12
+                  difficulty: easy
+                  duration_ms: 7500
+                  events:
+                    - kind: show
+                      positions:
+                        - 38
+                        - 33
+                        - 25
+                        - 17
+                        - 8
+                      t_ms: 0
+                    - index: 38
+                      kind: click
+                      t_ms: 100
+                    - index: 33
+                      kind: click
+                      t_ms: 200
+                    - index: 25
+                      kind: click
+                      t_ms: 300
+                    - index: 17
+                      kind: click
+                      t_ms: 400
+                    - index: 8
+                      kind: click
+                      t_ms: 500
+                    - kind: show
+                      positions:
+                        - 0
+                        - 1
+                        - 32
+                        - 17
+                        - 29
+                        - 10
+                      t_ms: 600
+                    - index: 0
+                      kind: click
+                      t_ms: 700
+                    - index: 1
+                      kind: click
+                      t_ms: 800
+                    - index: 32
+                      kind: click
+                      t_ms: 900
+                    - index: 17
+                      kind: click
+                      t_ms: 1000
+                    - index: 29
+                      kind: click
+                      t_ms: 1100
+                    - index: 10
+                      kind: click
+                      t_ms: 1200
+                    - kind: show
+                      positions:
+                        - 7
+                        - 28
+                        - 24
+                        - 32
+                        - 19
+                        - 12
+                        - 2
+                      t_ms: 1300
+                    - index: 7
+                      kind: click
+                      t_ms: 1400
+                    - index: 28
+                      kind: click
+                      t_ms: 1500
+                    - index: 24
+                      kind: click
+                      t_ms: 1600
+                    - index: 32
+                      kind: click
+                      t_ms: 1700
+                    - index: 19
+                      kind: click
+                      t_ms: 1800
+                    - index: 12
+                      kind: click
+                      t_ms: 1900
+                    - index: 2
+                      kind: click
+                      t_ms: 2000
+                    - kind: show
+                      positions:
+                        - 26
+                        - 10
+                        - 7
+                        - 33
+                        - 2
+                        - 20
+                        - 34
+                        - 29
+                      t_ms: 2100
+                    - index: 26
+                      kind: click
+                      t_ms: 2200
+                    - index: 10
+                      kind: click
+                      t_ms: 2300
+                    - index: 7
+                      kind: click
+                      t_ms: 2400
+                    - index: 33
+                      kind: click
+                      t_ms: 2500
+                    - index: 2
+                      kind: click
+                      t_ms: 2600
+                    - index: 20
+                      kind: click
+                      t_ms: 2700
+                    - index: 34
+                      kind: click
+                      t_ms: 2800
+                    - index: 29
+                      kind: click
+                      t_ms: 2900
+                    - kind: show
+                      positions:
+                        - 19
+                        - 11
+                        - 35
+                        - 29
+                        - 30
+                        - 32
+                        - 26
+                        - 38
+                        - 9
+                      t_ms: 3000
+                    - index: 19
+                      kind: click
+                      t_ms: 3100
+                    - index: 11
+                      kind: click
+                      t_ms: 3200
+                    - index: 35
+                      kind: click
+                      t_ms: 3300
+                    - index: 29
+                      kind: click
+                      t_ms: 3400
+                    - index: 30
+                      kind: click
+                      t_ms: 3500
+                    - index: 32
+                      kind: click
+                      t_ms: 3600
+                    - index: 26
+                      kind: click
+                      t_ms: 3700
+                    - index: 38
+                      kind: click
+                      t_ms: 3800
+                    - index: 9
+                      kind: click
+                      t_ms: 3900
+                    - kind: show
+                      positions:
+                        - 39
+                        - 19
+                        - 15
+                        - 13
+                        - 37
+                        - 5
+                        - 16
+                        - 36
+                        - 14
+                        - 7
+                      t_ms: 4000
+                    - index: 39
+                      kind: click
+                      t_ms: 4100
+                    - index: 19
+                      kind: click
+                      t_ms: 4200
+                    - index: 15
+                      kind: click
+                      t_ms: 4300
+                    - index: 13
+                      kind: click
+                      t_ms: 4400
+                    - index: 37
+                      kind: click
+                      t_ms: 4500
+                    - index: 5
+                      kind: click
+                      t_ms: 4600
+                    - index: 16
+                      kind: click
+                      t_ms: 4700
+                    - index: 36
+                      kind: click
+                      t_ms: 4800
+                    - index: 14
+                      kind: click
+                      t_ms: 4900
+                    - index: 7
+                      kind: click
+                      t_ms: 5000
+                    - kind: show
+                      positions:
+                        - 25
+                        - 19
+                        - 17
+                        - 23
+                        - 14
+                        - 9
+                        - 39
+                        - 8
+                        - 6
+                        - 34
+                        - 7
+                      t_ms: 5100
+                    - index: 25
+                      kind: click
+                      t_ms: 5200
+                    - index: 19
+                      kind: click
+                      t_ms: 5300
+                    - index: 17
+                      kind: click
+                      t_ms: 5400
+                    - index: 23
+                      kind: click
+                      t_ms: 5500
+                    - index: 14
+                      kind: click
+                      t_ms: 5600
+                    - index: 9
+                      kind: click
+                      t_ms: 5700
+                    - index: 39
+                      kind: click
+                      t_ms: 5800
+                    - index: 8
+                      kind: click
+                      t_ms: 5900
+                    - index: 6
+                      kind: click
+                      t_ms: 6000
+                    - index: 34
+                      kind: click
+                      t_ms: 6100
+                    - index: 7
+                      kind: click
+                      t_ms: 6200
+                    - kind: show
+                      positions:
+                        - 4
+                        - 1
+                        - 0
+                        - 27
+                        - 37
+                        - 32
+                        - 3
+                        - 20
+                        - 7
+                        - 10
+                        - 18
+                        - 38
+                      t_ms: 6300
+                    - index: 4
+                      kind: click
+                      t_ms: 6400
+                    - index: 1
+                      kind: click
+                      t_ms: 6500
+                    - index: 0
+                      kind: click
+                      t_ms: 6600
+                    - index: 27
+                      kind: click
+                      t_ms: 6700
+                    - index: 37
+                      kind: click
+                      t_ms: 6800
+                    - index: 32
+                      kind: click
+                      t_ms: 6900
+                    - index: 3
+                      kind: click
+                      t_ms: 7000
+                    - index: 20
+                      kind: click
+                      t_ms: 7100
+                    - index: 7
+                      kind: click
+                      t_ms: 7200
+                    - index: 10
+                      kind: click
+                      t_ms: 7300
+                    - index: 18
+                      kind: click
+                      t_ms: 7400
+                    - index: 38
+                      kind: click
+                      t_ms: 7500
+                    - kind: finish
+                      t_ms: 7500
+                  finish_reason: target_reached
+                  game_id: chimp
+                  initial: {}
+                  performed_at: 2026-11-14T12:39:37Z
+                  rules_version: 1
+                  source: synthetic
+                  status: completed
+      responses:
+        "200":
+          description: Identical replay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameRun"
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameRun"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      summary: Independent game history, descending performed_at then ID
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: game_id
+          in: query
+          schema:
+            type: string
+            enum:
+              - fifteen
+              - pairs
+              - math
+              - chimp
+      responses:
+        "200":
+          description: Page including completed, failed and aborted runs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/GameRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/game-runs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Original validated game log and server metadata
+      responses:
+        "200":
+          description: Game run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/game-runs/{id}/report:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Calculated metrics/comparison and current cached explanation; no model call
+      description: Baseline matches profile,game,rules,difficulty,config,source. Completed compares with completed;
+        chimp mistake-limit loss compares with same outcome. Aborted is excluded. Backfill changes fingerprint
+        and hides stale explanations.
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameReport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/game-runs/{id}/report.html:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      summary: Escaped printable Russian HTML game report
+      responses:
+        "200":
+          description: HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/game-runs/{id}/explanation:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      summary: Select trusted game facts through local Ollama; no request body
+      description: Shares global generation slot with legacy explanations (busy409). Default120s timeout.200
+        ready/unavailable/invalid; only ready saved. Failure preserves current cached explanation.
+      responses:
+        "200":
+          description: Generation outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameExplanationOutcome"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ID"
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    Error:
+      description: 400 malformed JSON/query/ID, unknown fields or multiple JSON values; 404 absent
+        resource/endpoint; 409 changed duplicate session or busy model; 413 body larger than 256 KiB; 415
+        non-JSON Content-Type; 422 missing/out-of-range domain values; 500 internal rendering/model error; 503
+        storage failure. Details and prompts are not exposed. New game-run requests have1MiB body limit;
+        legacy requests retain256KiB.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    ID:
+      type: string
+      pattern: ^[0-9a-f]{32}$
+    NullableID:
+      type:
+        - string
+        - "null"
+      pattern: ^[0-9a-f]{32}$
+    Health:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - ready
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+    Page:
+      type: object
+      required:
+        - limit
+        - offset
+        - total
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+    Profile:
+      type: object
+      required:
+        - id
+        - display_name
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/ID"
+        display_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Survey:
+      type: object
+      additionalProperties: false
+      required:
+        - sleep_hours
+        - fatigue
+        - stress
+        - mood
+      properties:
+        sleep_hours:
+          type: number
+          minimum: 0
+          maximum: 24
+          description: Hours slept
+        fatigue:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Higher means more fatigue
+        stress:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Higher means more stress
+        mood:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Higher means better mood
+    Trial:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - outcome
+            - reaction_ms
+          properties:
+            outcome:
+              const: valid
+            reaction_ms:
+              type: number
+              minimum: 1
+              maximum: 10000
+        - type: object
+          additionalProperties: false
+          required:
+            - outcome
+          properties:
+            outcome:
+              type: string
+              enum:
+                - premature
+                - missed
+    SessionInput:
+      type: object
+      additionalProperties: false
+      required:
+        - client_session_id
+        - performed_at
+        - protocol_version
+        - source
+        - survey
+        - reaction
+        - memory
+      properties:
+        client_session_id:
+          type: string
+          format: uuid
+        performed_at:
+          type: string
+          format: date-time
+          description: Required timezone; at most 5 minutes in the future
+        protocol_version:
+          const: reaction-memory-v1
+        source:
+          type: string
+          enum:
+            - observed
+            - synthetic
+        survey:
+          $ref: "#/components/schemas/Survey"
+        reaction:
+          type: object
+          additionalProperties: false
+          required:
+            - trials
+          properties:
+            trials:
+              type: array
+              minItems: 1
+              maxItems: 200
+              items:
+                $ref: "#/components/schemas/Trial"
+        memory:
+          type: object
+          additionalProperties: false
+          required:
+            - correct
+            - total
+          properties:
+            correct:
+              type: integer
+              minimum: 0
+              description: Must not exceed total
+            total:
+              type: integer
+              minimum: 1
+              maximum: 1000
+    Session:
+      description: SessionInput fields plus server metadata, flattened in one object
+      type: object
+      required:
+        - id
+        - profile_id
+        - received_at
+        - calculation_version
+        - client_session_id
+        - performed_at
+        - protocol_version
+        - source
+        - survey
+        - reaction
+        - memory
+      properties:
+        id:
+          $ref: "#/components/schemas/ID"
+        profile_id:
+          $ref: "#/components/schemas/ID"
+        received_at:
+          type: string
+          format: date-time
+        calculation_version:
+          const: v1
+        client_session_id:
+          $ref: "#/components/schemas/SessionInput/properties/client_session_id"
+        performed_at:
+          $ref: "#/components/schemas/SessionInput/properties/performed_at"
+        protocol_version:
+          const: reaction-memory-v1
+        source:
+          $ref: "#/components/schemas/SessionInput/properties/source"
+        survey:
+          $ref: "#/components/schemas/Survey"
+        reaction:
+          $ref: "#/components/schemas/SessionInput/properties/reaction"
+        memory:
+          $ref: "#/components/schemas/SessionInput/properties/memory"
+    ReactionMetrics:
+      type: object
+      required:
+        - valid
+        - premature
+        - missed
+        - mean_ms
+        - median_ms
+      properties:
+        valid:
+          type: integer
+          minimum: 0
+        premature:
+          type: integer
+          minimum: 0
+        missed:
+          type: integer
+          minimum: 0
+        mean_ms:
+          type:
+            - number
+            - "null"
+        median_ms:
+          type:
+            - number
+            - "null"
+    SurveyDelta:
+      type: object
+      required:
+        - sleep_hours
+        - fatigue
+        - stress
+        - mood
+      properties:
+        sleep_hours:
+          type: number
+        fatigue:
+          type: number
+        stress:
+          type: number
+        mood:
+          type: number
+    Comparison:
+      type: object
+      required:
+        - reaction_delta_ms
+        - reaction_delta_percent
+        - memory_delta_pp
+        - survey_delta
+      properties:
+        reaction_delta_ms:
+          type:
+            - number
+            - "null"
+          description: Current median minus baseline median
+        reaction_delta_percent:
+          type:
+            - number
+            - "null"
+          description: Delta divided by baseline median times 100
+        memory_delta_pp:
+          type: number
+          description: Current accuracy minus baseline accuracy in percentage points
+        survey_delta:
+          $ref: "#/components/schemas/SurveyDelta"
+    Fact:
+      type: object
+      required:
+        - id
+        - category
+        - text
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum:
+            - observations
+            - comparisons
+            - limitations
+        text:
+          type: string
+          description: Authored by Go from stored/calculated data
+    Explanation:
+      type: object
+      required:
+        - status
+        - model
+        - generated_at
+        - observations
+        - comparisons
+        - limitations
+      properties:
+        status:
+          const: ready
+        model:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        observations:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Fact"
+        comparisons:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fact"
+        limitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fact"
+    Report:
+      type: object
+      required:
+        - session_id
+        - protocol_version
+        - calculation_version
+        - source
+        - performed_at
+        - baseline_session_id
+        - reaction
+        - memory_percent
+        - survey
+        - survey_scales
+        - comparison
+        - limitations
+        - explanation
+      properties:
+        session_id:
+          $ref: "#/components/schemas/ID"
+        protocol_version:
+          const: reaction-memory-v1
+        calculation_version:
+          const: v1
+        source:
+          type: string
+          enum:
+            - observed
+            - synthetic
+        performed_at:
+          type: string
+          format: date-time
+        baseline_session_id:
+          $ref: "#/components/schemas/NullableID"
+        reaction:
+          $ref: "#/components/schemas/ReactionMetrics"
+        memory_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        survey:
+          $ref: "#/components/schemas/Survey"
+        survey_scales:
+          type: object
+          additionalProperties:
+            type: string
+        comparison:
+          oneOf:
+            - $ref: "#/components/schemas/Comparison"
+            - type: "null"
+        limitations:
+          type: array
+          items:
+            type: string
+        explanation:
+          oneOf:
+            - $ref: "#/components/schemas/Explanation"
+            - type: "null"
+    FifteenInitial:
+      type: object
+      additionalProperties: false
+      required:
+        - board
+        - scramble
+      properties:
+        board:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 15
+          minItems: 16
+          maxItems: 16
+          uniqueItems: true
+        scramble:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 15
+          minItems: 30
+          maxItems: 180
+    PairsInitial:
+      type: object
+      additionalProperties: false
+      required:
+        - cards
+      properties:
+        cards:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 17
+          minItems: 18
+          maxItems: 36
+    MathQuestion:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: add
+            a:
+              type: integer
+              minimum: 0
+              maximum: 150
+            b:
+              type: integer
+              minimum: 0
+              maximum: 150
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: sub
+            a:
+              type: integer
+              minimum: 0
+              maximum: 150
+            b:
+              type: integer
+              minimum: 0
+              maximum: 150
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: mul
+            a:
+              type: integer
+              minimum: 0
+              maximum: 30
+            b:
+              type: integer
+              minimum: 0
+              maximum: 30
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: div
+            a:
+              type: integer
+              minimum: 4
+              maximum: 540
+            b:
+              type: integer
+              minimum: 2
+              maximum: 18
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+      description: Further bounds/operation quotas depend on difficulty. Go verifies arithmetic, unique canonical
+        expressions, exactly one correct option, and exact division.
+    MathInitial:
+      type: object
+      additionalProperties: false
+      required:
+        - questions
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MathQuestion"
+          minItems: 20
+          maxItems: 20
+    FifteenEvent:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - index
+          properties:
+            kind:
+              const: move
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            index:
+              type: integer
+              minimum: 0
+              maximum: 15
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: finish
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+    PairsEvent:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - index
+          properties:
+            kind:
+              const: flip
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            index:
+              type: integer
+              minimum: 0
+              maximum: 35
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: finish
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+    MathEvent:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - index
+          properties:
+            kind:
+              const: show
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            index:
+              type: integer
+              minimum: 0
+              maximum: 19
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - index
+          properties:
+            kind:
+              const: answer
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            index:
+              type: integer
+              minimum: 0
+              maximum: 3
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: skip
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: timeout
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: finish
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+    ChimpEvent:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - positions
+          properties:
+            kind:
+              const: show
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            positions:
+              type: array
+              items:
+                type: integer
+                minimum: 0
+                maximum: 39
+              minItems: 5
+              maxItems: 24
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+            - index
+          properties:
+            kind:
+              const: click
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+            index:
+              type: integer
+              minimum: 0
+              maximum: 39
+        - type: object
+          additionalProperties: false
+          required:
+            - kind
+            - t_ms
+          properties:
+            kind:
+              const: finish
+            t_ms:
+              type: integer
+              minimum: 0
+              maximum: 86400000
+    FifteenPayload:
+      type: object
+      properties:
+        game_id:
+          const: fifteen
+        initial:
+          $ref: "#/components/schemas/FifteenInitial"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/FifteenEvent"
+          minItems: 1
+          maxItems: 10000
+      oneOf:
+        - properties:
+            difficulty:
+              const: easy
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - shuffle_moves
+              properties:
+                shuffle_moves:
+                  const: 30
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/FifteenInitial"
+                - properties:
+                    scramble:
+                      minItems: 30
+                      maxItems: 30
+        - properties:
+            difficulty:
+              const: normal
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - shuffle_moves
+              properties:
+                shuffle_moves:
+                  const: 90
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/FifteenInitial"
+                - properties:
+                    scramble:
+                      minItems: 90
+                      maxItems: 90
+        - properties:
+            difficulty:
+              const: hard
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - shuffle_moves
+              properties:
+                shuffle_moves:
+                  const: 180
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/FifteenInitial"
+                - properties:
+                    scramble:
+                      minItems: 180
+                      maxItems: 180
+    PairsPayload:
+      type: object
+      properties:
+        game_id:
+          const: pairs
+        initial:
+          $ref: "#/components/schemas/PairsInitial"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/PairsEvent"
+          minItems: 1
+          maxItems: 10000
+      oneOf:
+        - properties:
+            difficulty:
+              const: easy
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - pairs
+                - preview_ms
+                - mismatch_ms
+              properties:
+                pairs:
+                  const: 9
+                preview_ms:
+                  const: 5000
+                mismatch_ms:
+                  const: 700
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/PairsInitial"
+                - properties:
+                    cards:
+                      items:
+                        type: integer
+                        minimum: 0
+                        maximum: 8
+                      minItems: 18
+                      maxItems: 18
+                      allOf:
+                        - contains:
+                            const: 0
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 1
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 2
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 3
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 4
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 5
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 6
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 7
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 8
+                          minContains: 2
+                          maxContains: 2
+        - properties:
+            difficulty:
+              const: normal
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - pairs
+                - preview_ms
+                - mismatch_ms
+              properties:
+                pairs:
+                  const: 12
+                preview_ms:
+                  const: 4000
+                mismatch_ms:
+                  const: 700
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/PairsInitial"
+                - properties:
+                    cards:
+                      items:
+                        type: integer
+                        minimum: 0
+                        maximum: 11
+                      minItems: 24
+                      maxItems: 24
+                      allOf:
+                        - contains:
+                            const: 0
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 1
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 2
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 3
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 4
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 5
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 6
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 7
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 8
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 9
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 10
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 11
+                          minContains: 2
+                          maxContains: 2
+        - properties:
+            difficulty:
+              const: hard
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - pairs
+                - preview_ms
+                - mismatch_ms
+              properties:
+                pairs:
+                  const: 18
+                preview_ms:
+                  const: 3000
+                mismatch_ms:
+                  const: 700
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/PairsInitial"
+                - properties:
+                    cards:
+                      items:
+                        type: integer
+                        minimum: 0
+                        maximum: 17
+                      minItems: 36
+                      maxItems: 36
+                      allOf:
+                        - contains:
+                            const: 0
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 1
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 2
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 3
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 4
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 5
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 6
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 7
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 8
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 9
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 10
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 11
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 12
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 13
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 14
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 15
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 16
+                          minContains: 2
+                          maxContains: 2
+                        - contains:
+                            const: 17
+                          minContains: 2
+                          maxContains: 2
+    MathPayload:
+      type: object
+      properties:
+        game_id:
+          const: math
+        initial:
+          $ref: "#/components/schemas/MathInitial"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/MathEvent"
+          minItems: 1
+          maxItems: 10000
+      oneOf:
+        - properties:
+            difficulty:
+              const: easy
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - question_count
+                - time_limit_ms
+                - question_limit_ms
+              properties:
+                question_count:
+                  const: 20
+                time_limit_ms:
+                  const: 60000
+                question_limit_ms:
+                  const: 8000
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/MathInitial"
+                - properties:
+                    questions:
+                      items:
+                        $ref: "#/components/schemas/MathQuestioneasy"
+                      allOf:
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: add
+                          minContains: 10
+                          maxContains: 10
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: sub
+                          minContains: 10
+                          maxContains: 10
+        - properties:
+            difficulty:
+              const: normal
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - question_count
+                - time_limit_ms
+                - question_limit_ms
+              properties:
+                question_count:
+                  const: 20
+                time_limit_ms:
+                  const: 60000
+                question_limit_ms:
+                  const: 6000
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/MathInitial"
+                - properties:
+                    questions:
+                      items:
+                        $ref: "#/components/schemas/MathQuestionnormal"
+                      allOf:
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: add
+                          minContains: 7
+                          maxContains: 7
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: sub
+                          minContains: 7
+                          maxContains: 7
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: mul
+                          minContains: 6
+                          maxContains: 6
+        - properties:
+            difficulty:
+              const: hard
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - question_count
+                - time_limit_ms
+                - question_limit_ms
+              properties:
+                question_count:
+                  const: 20
+                time_limit_ms:
+                  const: 60000
+                question_limit_ms:
+                  const: 4000
+            initial:
+              allOf:
+                - $ref: "#/components/schemas/MathInitial"
+                - properties:
+                    questions:
+                      items:
+                        $ref: "#/components/schemas/MathQuestionhard"
+                      allOf:
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: add
+                          minContains: 5
+                          maxContains: 5
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: sub
+                          minContains: 5
+                          maxContains: 5
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: mul
+                          minContains: 5
+                          maxContains: 5
+                        - contains:
+                            type: object
+                            required:
+                              - op
+                            properties:
+                              op:
+                                const: div
+                          minContains: 5
+                          maxContains: 5
+    ChimpPayload:
+      type: object
+      properties:
+        game_id:
+          const: chimp
+        initial:
+          type: object
+          additionalProperties: false
+          required: []
+          properties: {}
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChimpEvent"
+          minItems: 1
+          maxItems: 10000
+      oneOf:
+        - properties:
+            difficulty:
+              const: easy
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - columns
+                - rows
+                - start_count
+                - target_count
+                - mistake_limit
+              properties:
+                columns:
+                  const: 8
+                rows:
+                  const: 5
+                start_count:
+                  const: 5
+                target_count:
+                  const: 12
+                mistake_limit:
+                  const: 4
+            events:
+              type: array
+              items:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - positions
+                    properties:
+                      kind:
+                        const: show
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      positions:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 0
+                          maximum: 39
+                        minItems: 5
+                        maxItems: 12
+                        uniqueItems: true
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - index
+                    properties:
+                      kind:
+                        const: click
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      index:
+                        type: integer
+                        minimum: 0
+                        maximum: 39
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                    properties:
+                      kind:
+                        const: finish
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+        - properties:
+            difficulty:
+              const: normal
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - columns
+                - rows
+                - start_count
+                - target_count
+                - mistake_limit
+              properties:
+                columns:
+                  const: 8
+                rows:
+                  const: 5
+                start_count:
+                  const: 6
+                target_count:
+                  const: 18
+                mistake_limit:
+                  const: 3
+            events:
+              type: array
+              items:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - positions
+                    properties:
+                      kind:
+                        const: show
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      positions:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 0
+                          maximum: 39
+                        minItems: 6
+                        maxItems: 18
+                        uniqueItems: true
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - index
+                    properties:
+                      kind:
+                        const: click
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      index:
+                        type: integer
+                        minimum: 0
+                        maximum: 39
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                    properties:
+                      kind:
+                        const: finish
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+        - properties:
+            difficulty:
+              const: hard
+            config:
+              type: object
+              additionalProperties: false
+              required:
+                - columns
+                - rows
+                - start_count
+                - target_count
+                - mistake_limit
+              properties:
+                columns:
+                  const: 8
+                rows:
+                  const: 5
+                start_count:
+                  const: 9
+                target_count:
+                  const: 24
+                mistake_limit:
+                  const: 2
+            events:
+              type: array
+              items:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - positions
+                    properties:
+                      kind:
+                        const: show
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      positions:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 0
+                          maximum: 39
+                        minItems: 9
+                        maxItems: 24
+                        uniqueItems: true
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                      - index
+                    properties:
+                      kind:
+                        const: click
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+                      index:
+                        type: integer
+                        minimum: 0
+                        maximum: 39
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - kind
+                      - t_ms
+                    properties:
+                      kind:
+                        const: finish
+                      t_ms:
+                        type: integer
+                        minimum: 0
+                        maximum: 86400000
+    GameInput:
+      type: object
+      additionalProperties: false
+      required:
+        - client_run_id
+        - game_id
+        - rules_version
+        - difficulty
+        - config
+        - source
+        - performed_at
+        - status
+        - finish_reason
+        - duration_ms
+        - initial
+        - events
+      properties:
+        client_run_id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+          enum:
+            - fifteen
+            - pairs
+            - math
+            - chimp
+        rules_version:
+          const: 1
+        difficulty:
+          type: string
+          enum:
+            - easy
+            - normal
+            - hard
+        config:
+          type: object
+        survey:
+          description: Optional saved survey snapshot; older game runs can omit it.
+          anyOf:
+            - $ref: "#/components/schemas/Survey"
+            - type: "null"
+        source:
+          type: string
+          enum:
+            - observed
+            - synthetic
+        performed_at:
+          type: string
+          format: date-time
+          description: UTC/RFC3339 start, at most5 minutes in future
+        status:
+          type: string
+          enum:
+            - completed
+            - failed
+            - aborted
+        finish_reason:
+          type: string
+          enum:
+            - solved
+            - questions_done
+            - time_limit
+            - target_reached
+            - mistake_limit
+            - user_exit
+            - focus_lost
+            - host_removed
+            - recording_limit
+        duration_ms:
+          type: integer
+          minimum: 0
+          maximum: 86400000
+        initial:
+          type: object
+        events:
+          type: array
+      oneOf:
+        - $ref: "#/components/schemas/FifteenPayload"
+        - $ref: "#/components/schemas/PairsPayload"
+        - $ref: "#/components/schemas/MathPayload"
+        - $ref: "#/components/schemas/ChimpPayload"
+      description: Immutable rules-v1 event log. First math/chimp show at0; monotonic t_ms; final finish equals
+        duration_ms. Go independently replays every action, timing and terminal condition. Body limit1MiB.
+        Random layouts are captured in initial/show events; server RNG need not match client RNG.
+    GameRun:
+      type: object
+      additionalProperties: false
+      required:
+        - client_run_id
+        - game_id
+        - rules_version
+        - difficulty
+        - config
+        - source
+        - performed_at
+        - status
+        - finish_reason
+        - duration_ms
+        - initial
+        - events
+        - id
+        - profile_id
+        - received_at
+        - calculation_version
+      properties:
+        client_run_id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+          enum:
+            - fifteen
+            - pairs
+            - math
+            - chimp
+        rules_version:
+          const: 1
+        difficulty:
+          type: string
+          enum:
+            - easy
+            - normal
+            - hard
+        config:
+          type: object
+        survey:
+          $ref: "#/components/schemas/Survey"
+        source:
+          type: string
+          enum:
+            - observed
+            - synthetic
+        performed_at:
+          type: string
+          format: date-time
+          description: UTC/RFC3339 start, at most5 minutes in future
+        status:
+          type: string
+          enum:
+            - completed
+            - failed
+            - aborted
+        finish_reason:
+          type: string
+          enum:
+            - solved
+            - questions_done
+            - time_limit
+            - target_reached
+            - mistake_limit
+            - user_exit
+            - focus_lost
+            - host_removed
+            - recording_limit
+        duration_ms:
+          type: integer
+          minimum: 0
+          maximum: 86400000
+        initial:
+          type: object
+        events:
+          type: array
+        id:
+          $ref: "#/components/schemas/ID"
+        profile_id:
+          $ref: "#/components/schemas/ID"
+        received_at:
+          type: string
+          format: date-time
+        calculation_version:
+          const: v1
+      oneOf:
+        - $ref: "#/components/schemas/FifteenPayload"
+        - $ref: "#/components/schemas/PairsPayload"
+        - $ref: "#/components/schemas/MathPayload"
+        - $ref: "#/components/schemas/ChimpPayload"
+    GameReport:
+      type: object
+      additionalProperties: false
+      required:
+        - run_id
+        - game_id
+        - rules_version
+        - calculation_version
+        - difficulty
+        - config
+        - source
+        - status
+        - finish_reason
+        - performed_at
+        - metrics
+        - units
+        - baseline_run_id
+        - deltas
+        - limitations
+        - explanation
+      properties:
+        run_id:
+          $ref: "#/components/schemas/ID"
+        game_id:
+          type: string
+          enum:
+            - fifteen
+            - pairs
+            - math
+            - chimp
+        rules_version:
+          const: 1
+        calculation_version:
+          const: v1
+        difficulty:
+          type: string
+          enum:
+            - easy
+            - normal
+            - hard
+        config:
+          type: object
+          additionalProperties:
+            type: integer
+        survey:
+          $ref: "#/components/schemas/Survey"
+        source:
+          type: string
+          enum:
+            - observed
+            - synthetic
+        status:
+          type: string
+          enum:
+            - completed
+            - failed
+            - aborted
+        finish_reason:
+          type: string
+          enum:
+            - solved
+            - questions_done
+            - time_limit
+            - target_reached
+            - mistake_limit
+            - user_exit
+            - focus_lost
+            - host_removed
+            - recording_limit
+        performed_at:
+          type: string
+          format: date-time
+          description: UTC/RFC3339 start, at most5 minutes in future
+        metrics:
+          type: object
+          additionalProperties:
+            type:
+              - number
+              - "null"
+        units:
+          type: object
+          additionalProperties:
+            type: string
+        baseline_run_id:
+          $ref: "#/components/schemas/NullableID"
+        deltas:
+          type:
+            - object
+            - "null"
+          additionalProperties:
+            type:
+              - number
+              - "null"
+          description: Current minus baseline; accuracy differences in percentage points. Null without eligible baseline.
+        limitations:
+          type: array
+          items:
+            type: string
+        explanation:
+          oneOf:
+            - $ref: "#/components/schemas/Explanation"
+            - type: "null"
+      oneOf:
+        - properties:
+            game_id:
+              const: fifteen
+            metrics:
+              type: object
+              additionalProperties: false
+              required:
+                - moves
+                - solved
+                - duration_ms
+              properties:
+                moves:
+                  type:
+                    - number
+                    - "null"
+                solved:
+                  type:
+                    - number
+                    - "null"
+                duration_ms:
+                  type:
+                    - number
+                    - "null"
+            units:
+              type: object
+              required:
+                - moves
+                - solved
+                - duration_ms
+        - properties:
+            game_id:
+              const: pairs
+            metrics:
+              type: object
+              additionalProperties: false
+              required:
+                - pairs_found
+                - attempts
+                - errors
+                - accuracy_percent
+                - active_ms
+                - duration_ms
+              properties:
+                pairs_found:
+                  type:
+                    - number
+                    - "null"
+                attempts:
+                  type:
+                    - number
+                    - "null"
+                errors:
+                  type:
+                    - number
+                    - "null"
+                accuracy_percent:
+                  type:
+                    - number
+                    - "null"
+                active_ms:
+                  type:
+                    - number
+                    - "null"
+                duration_ms:
+                  type:
+                    - number
+                    - "null"
+            units:
+              type: object
+              required:
+                - pairs_found
+                - attempts
+                - errors
+                - accuracy_percent
+                - active_ms
+                - duration_ms
+        - properties:
+            game_id:
+              const: math
+            metrics:
+              type: object
+              additionalProperties: false
+              required:
+                - shown
+                - correct
+                - incorrect
+                - skipped
+                - manual_skips
+                - timeouts
+                - answered
+                - accuracy_percent
+                - mean_answer_ms
+                - median_answer_ms
+                - correct_per_minute
+                - duration_ms
+              properties:
+                shown:
+                  type:
+                    - number
+                    - "null"
+                correct:
+                  type:
+                    - number
+                    - "null"
+                incorrect:
+                  type:
+                    - number
+                    - "null"
+                skipped:
+                  type:
+                    - number
+                    - "null"
+                manual_skips:
+                  type:
+                    - number
+                    - "null"
+                timeouts:
+                  type:
+                    - number
+                    - "null"
+                answered:
+                  type:
+                    - number
+                    - "null"
+                accuracy_percent:
+                  type:
+                    - number
+                    - "null"
+                mean_answer_ms:
+                  type:
+                    - number
+                    - "null"
+                median_answer_ms:
+                  type:
+                    - number
+                    - "null"
+                correct_per_minute:
+                  type:
+                    - number
+                    - "null"
+                duration_ms:
+                  type:
+                    - number
+                    - "null"
+            units:
+              type: object
+              required:
+                - shown
+                - correct
+                - incorrect
+                - skipped
+                - manual_skips
+                - timeouts
+                - answered
+                - accuracy_percent
+                - mean_answer_ms
+                - median_answer_ms
+                - correct_per_minute
+                - duration_ms
+        - properties:
+            game_id:
+              const: chimp
+            metrics:
+              type: object
+              additionalProperties: false
+              required:
+                - rounds
+                - successful_rounds
+                - failed_rounds
+                - errors
+                - max_completed_count
+                - mean_preview_ms
+                - mean_selection_ms
+                - duration_ms
+              properties:
+                rounds:
+                  type:
+                    - number
+                    - "null"
+                successful_rounds:
+                  type:
+                    - number
+                    - "null"
+                failed_rounds:
+                  type:
+                    - number
+                    - "null"
+                errors:
+                  type:
+                    - number
+                    - "null"
+                max_completed_count:
+                  type:
+                    - number
+                    - "null"
+                mean_preview_ms:
+                  type:
+                    - number
+                    - "null"
+                mean_selection_ms:
+                  type:
+                    - number
+                    - "null"
+                duration_ms:
+                  type:
+                    - number
+                    - "null"
+            units:
+              type: object
+              required:
+                - rounds
+                - successful_rounds
+                - failed_rounds
+                - errors
+                - max_completed_count
+                - mean_preview_ms
+                - mean_selection_ms
+                - duration_ms
+    GameExplanationOutcome:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - explanation
+        - report_fingerprint
+        - baseline_run_id
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - unavailable
+            - invalid
+        explanation:
+          oneOf:
+            - $ref: "#/components/schemas/Explanation"
+            - type: "null"
+        reason:
+          type: string
+          enum:
+            - model_unavailable
+            - model_invalid
+            - report_changed
+        report_fingerprint:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        baseline_run_id:
+          $ref: "#/components/schemas/NullableID"
+    MathQuestioneasy:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: add
+            a:
+              type: integer
+              minimum: 0
+              maximum: 30
+            b:
+              type: integer
+              minimum: 0
+              maximum: 30
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: sub
+            a:
+              type: integer
+              minimum: 0
+              maximum: 30
+            b:
+              type: integer
+              minimum: 0
+              maximum: 30
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+    MathQuestionnormal:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: add
+            a:
+              type: integer
+              minimum: 0
+              maximum: 75
+            b:
+              type: integer
+              minimum: 0
+              maximum: 75
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: sub
+            a:
+              type: integer
+              minimum: 0
+              maximum: 75
+            b:
+              type: integer
+              minimum: 0
+              maximum: 75
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: mul
+            a:
+              type: integer
+              minimum: 0
+              maximum: 18
+            b:
+              type: integer
+              minimum: 0
+              maximum: 18
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+    MathQuestionhard:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: add
+            a:
+              type: integer
+              minimum: 0
+              maximum: 150
+            b:
+              type: integer
+              minimum: 0
+              maximum: 150
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: sub
+            a:
+              type: integer
+              minimum: 0
+              maximum: 150
+            b:
+              type: integer
+              minimum: 0
+              maximum: 150
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: mul
+            a:
+              type: integer
+              minimum: 2
+              maximum: 30
+            b:
+              type: integer
+              minimum: 2
+              maximum: 30
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true
+        - type: object
+          additionalProperties: false
+          required:
+            - op
+            - a
+            - b
+            - options
+          properties:
+            op:
+              const: div
+            a:
+              type: integer
+              minimum: 4
+              maximum: 540
+            b:
+              type: integer
+              minimum: 2
+              maximum: 18
+            options:
+              type: array
+              items:
+                type: integer
+                minimum: -1000
+                maximum: 1000
+              minItems: 4
+              maxItems: 4
+              uniqueItems: true

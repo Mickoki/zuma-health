@@ -6,3 +6,15 @@ local_settings.json
 *.db
 *.sqlite
 .venv/
+__pycache__/
+*.pyc
+.superpowers/
+server/data/
+*.db-wal
+*.db-shm
+*.exe
+*.test
+*.gguf
+server/coverage.out
+
+dist/

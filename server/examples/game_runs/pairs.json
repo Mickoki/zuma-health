@@ -1,0 +1,134 @@
+{
+  "client_run_id": "bef65fae-205e-4be8-a3bc-4c42ad7a0808",
+  "config": {
+    "mismatch_ms": 700,
+    "pairs": 9,
+    "preview_ms": 5000
+  },
+  "difficulty": "easy",
+  "duration_ms": 6800,
+  "events": [
+    {
+      "index": 3,
+      "kind": "flip",
+      "t_ms": 5100
+    },
+    {
+      "index": 15,
+      "kind": "flip",
+      "t_ms": 5200
+    },
+    {
+      "index": 2,
+      "kind": "flip",
+      "t_ms": 5300
+    },
+    {
+      "index": 16,
+      "kind": "flip",
+      "t_ms": 5400
+    },
+    {
+      "index": 11,
+      "kind": "flip",
+      "t_ms": 5500
+    },
+    {
+      "index": 17,
+      "kind": "flip",
+      "t_ms": 5600
+    },
+    {
+      "index": 0,
+      "kind": "flip",
+      "t_ms": 5700
+    },
+    {
+      "index": 9,
+      "kind": "flip",
+      "t_ms": 5800
+    },
+    {
+      "index": 6,
+      "kind": "flip",
+      "t_ms": 5900
+    },
+    {
+      "index": 12,
+      "kind": "flip",
+      "t_ms": 6000
+    },
+    {
+      "index": 4,
+      "kind": "flip",
+      "t_ms": 6100
+    },
+    {
+      "index": 7,
+      "kind": "flip",
+      "t_ms": 6200
+    },
+    {
+      "index": 8,
+      "kind": "flip",
+      "t_ms": 6300
+    },
+    {
+      "index": 14,
+      "kind": "flip",
+      "t_ms": 6400
+    },
+    {
+      "index": 1,
+      "kind": "flip",
+      "t_ms": 6500
+    },
+    {
+      "index": 10,
+      "kind": "flip",
+      "t_ms": 6600
+    },
+    {
+      "index": 5,
+      "kind": "flip",
+      "t_ms": 6700
+    },
+    {
+      "index": 13,
+      "kind": "flip",
+      "t_ms": 6800
+    },
+    {
+      "kind": "finish",
+      "t_ms": 6800
+    }
+  ],
+  "finish_reason": "solved",
+  "game_id": "pairs",
+  "initial": {
+    "cards": [
+      3,
+      7,
+      1,
+      0,
+      5,
+      8,
+      4,
+      5,
+      6,
+      3,
+      7,
+      2,
+      4,
+      8,
+      6,
+      0,
+      1,
+      2
+    ]
+  },
+  "performed_at": "2026-11-14T12:39:37Z",
+  "rules_version": 1,
+  "source": "synthetic",
+  "status": "completed"
+}
