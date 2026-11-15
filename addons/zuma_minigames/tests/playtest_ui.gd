@@ -89,7 +89,8 @@ func run_test() -> void:
 						break
 					await click(view.grid.get_child(index))
 			"pairs":
-				await create_timer(session.config.preview_ms / 1000.0 + 0.1).timeout
+				while view.elapsed() < session.config.preview_ms + 20:
+					await process_frame
 				await snapshot("pairs-hidden")
 				for symbol in range(session.config.pairs):
 					var first: int = session.cards.find(symbol)
@@ -119,7 +120,7 @@ func run_test() -> void:
 		file.close()
 		var back: Button
 		for candidate in view.find_children("*", "Button", true, false):
-			if candidate.text == "Назад":
+			if candidate.text == "Назад" and candidate.is_visible_in_tree():
 				back = candidate
 		await click(back)
 		assert(demo.menu.visible)

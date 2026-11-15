@@ -2,10 +2,11 @@ extends Control
 
 const API = "http://127.0.0.1:8080"
 const DRAFT_PATH = "user://survey_drafts.json"
-const BG = Color("0b1424")
-const PANEL = Color("14243a")
-const MUTED = Color("9aafc4")
-const ACCENT = Color("55d9c2")
+const BG = Color("04070f")
+const PANEL = Color(0.043, 0.067, 0.125, 0.88)
+const MUTED = Color("94a3b8")
+const ACCENT = Color("00e5ff")
+const OrbitBackground = preload("res://addons/zuma_minigames/ui/orbit_background.gd")
 const HISTORY_PAGE_SIZE := 10
 const NASA_SLEEP_URL := "https://www.nasa.gov/directorates/esdmd/hhp/risk-of-performance-decrements-and-adverse-health-outcomes-resulting-from-sleep-loss-circadian-desynchronization-and-work-overload/"
 const NASA_BEHAVIOR_URL := "https://www.nasa.gov/directorates/esdmd/hhp/behavioral-health-risk/"
@@ -79,6 +80,7 @@ var trend_load_revision := 0
 var minigames_host: Control
 
 func _ready() -> void:
+	theme = preload("res://theme/zuma_theme.tres")
 	session_queue = SessionQueue.new()
 	session_queue.api_url = api_url
 	session_queue.queue_dir = queue_path
@@ -102,13 +104,15 @@ func button(text: String, action: Callable, primary: bool = false) -> Button:
 	result.custom_minimum_size = Vector2(0, 44)
 	result.add_theme_font_size_override("font_size", 16)
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = ACCENT if primary else Color("20364e")
-	normal.set_corner_radius_all(8)
+	normal.bg_color = ACCENT if primary else PANEL
+	normal.set_corner_radius_all(10)
+	normal.set_border_width_all(1)
+	normal.border_color = Color(0.58, 0.64, 0.72, 0.22)
 	normal.content_margin_left = 16
 	normal.content_margin_right = 16
 	result.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Color("79e6d4") if primary else Color("2c4964")
+	hover.bg_color = Color("7cf3ff") if primary else Color("12384a")
 	result.add_theme_stylebox_override("hover", hover)
 	if primary:
 		result.add_theme_color_override("font_color", BG)
@@ -117,16 +121,13 @@ func button(text: String, action: Callable, primary: bool = false) -> Button:
 	return result
 
 func build_shell() -> void:
-	var background := ColorRect.new()
-	background.color = BG
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
+	add_child(OrbitBackground.new())
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 44)
+		margin.add_theme_constant_override("margin_" + side, 20)
 	for side in ["top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
+		margin.add_theme_constant_override("margin_" + side, 18)
 	add_child(margin)
 	root_column = VBoxContainer.new()
 	root_column.add_theme_constant_override("separation", 16)
@@ -134,7 +135,12 @@ func build_shell() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
 	root_column.add_child(header)
-	var brand := label("ZUMA  /  MISSION HEALTH", 22, ACCENT)
+	var logo := TextureRect.new()
+	logo.texture = preload("res://assets/icons/zuma.svg")
+	logo.custom_minimum_size = Vector2(32, 32)
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header.add_child(logo)
+	var brand := label("ZUMA / MISSION HEALTH", 21, ACCENT)
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(brand)
 	status_label = label("Проверяем сервер…", 14, MUTED)
@@ -146,29 +152,40 @@ func build_shell() -> void:
 	status_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	status_label.tooltip_text = status_label.text
 	header.add_child(status_label)
-	var nav := HBoxContainer.new()
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 18)
+	root_column.add_child(body)
+	var sidebar := PanelContainer.new()
+	sidebar.custom_minimum_size.x = 172
+	body.add_child(sidebar)
+	var nav := VBoxContainer.new()
 	nav.add_theme_constant_override("separation", 8)
-	root_column.add_child(nav)
+	sidebar.add_child(nav)
+	nav.add_child(label("ПОЛЁТНАЯ ПАЛУБА", 12, MUTED))
 	navigation_buttons = {"home": button("Обзор", show_home), "survey": button("Самочувствие", show_survey), "games": button("Игры", show_minigames), "history": button("История", show_history), "trends": button("Динамика", show_trends), "help": button("Справка", show_help)}
 	for nav_button in navigation_buttons.values():
 		nav.add_child(nav_button)
 	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nav.add_child(spacer)
+	nav.add_child(label("ЛОКАЛЬНОЕ\nПРИЛОЖЕНИЕ", 12, MUTED))
+	nav.add_child(button("Выход", func(): get_tree().quit()))
 	profile_picker = OptionButton.new()
 	profile_picker.custom_minimum_size = Vector2(210, 44)
 	profile_picker.add_item("Нет профиля")
 	profile_picker.item_selected.connect(select_profile)
-	nav.add_child(profile_picker)
+	header.add_child(profile_picker)
 	content_scroll = ScrollContainer.new()
 	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	root_column.add_child(content_scroll)
+	body.add_child(content_scroll)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 16)
 	content_scroll.add_child(content)
-	root_column.add_child(label("Локальный прототип • Результаты не являются медицинским диагнозом", 13, MUTED))
+	root_column.add_child(label("Показатели заданий не являются медицинским диагнозом.", 13, MUTED))
 
 func clear_content(page: String) -> void:
 	if current_page == "trends":
@@ -194,7 +211,8 @@ func update_navigation(page: String) -> void:
 		var item: Button = navigation_buttons[key]
 		item.disabled = run_in_progress
 		var normal := item.get_theme_stylebox("normal").duplicate() as StyleBoxFlat
-		normal.bg_color = Color("2b4c5e") if key == active else Color("20364e")
+		normal.bg_color = Color("12384a") if key == active else PANEL
+		normal.border_color = ACCENT if key == active else Color(0.58, 0.64, 0.72, 0.22)
 		item.add_theme_stylebox_override("normal", normal)
 		item.add_theme_color_override("font_color", ACCENT if key == active else Color.WHITE)
 	profile_picker.disabled = run_in_progress
@@ -207,7 +225,9 @@ func card() -> VBoxContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = PANEL
-	style.set_corner_radius_all(12)
+	style.set_corner_radius_all(10)
+	style.set_border_width_all(1)
+	style.border_color = Color(0.58, 0.64, 0.72, 0.22)
 	style.content_margin_left = 24
 	style.content_margin_right = 24
 	style.content_margin_top = 20
@@ -253,6 +273,20 @@ func show_home() -> void:
 	var next := card()
 	next.add_child(label("02  /  ЕЖЕДНЕВНАЯ ПРОВЕРКА", 14, ACCENT))
 	next.add_child(label("Самочувствие → игровые задания → отчёт", 21))
+	next.add_child(button("Перейти к мини-играм", show_minigames, true))
+	var storage_result := label("", 14, MUTED)
+	next.add_child(button("Проверить локальное сохранение", func():
+		var file := FileAccess.open("user://setup_check.json", FileAccess.WRITE)
+		if file == null:
+			storage_result.text = "Ошибка сохранения: %d" % FileAccess.get_open_error()
+			return
+		file.store_string(JSON.stringify({"setup": "ok", "time": Time.get_datetime_string_from_system(true)}))
+		file.flush()
+		var error := file.get_error()
+		file.close()
+		storage_result.text = "Запись сохранена: setup_check.json" if error == OK else "Ошибка сохранения: %d" % error
+	))
+	next.add_child(storage_result)
 	next.add_child(label("Сохраните опрос и выберите игру. Копия опроса будет прикреплена к каждому новому прохождению.", 16, MUTED))
 	next.add_child(button("Заполнить опрос  →", show_survey, true))
 	var history := card()

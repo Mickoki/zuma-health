@@ -34,6 +34,8 @@ with tempfile.TemporaryDirectory(prefix="zuma-pack-test-", dir=WORKSPACE) as dir
         shutil.copy2(ROOT / name, project / name)
     shutil.copytree(ROOT / "scripts", project / "scripts")
     shutil.copytree(ROOT / "scenes", project / "scenes")
+    for folder in ("addons", "assets", "theme"):
+        shutil.copytree(ROOT / folder, project / folder)
     games = project / "scenes" / "games"
     games.mkdir()
     scene = '[gd_scene format=3]\n\n[node name="Fixture" type="Control"]\n'

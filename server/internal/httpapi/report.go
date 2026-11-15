@@ -7,14 +7,14 @@ import (
 	"net/http"
 )
 
-var reportTemplate = template.Must(template.New("report").Parse(`<!doctype html>
+var reportTemplate = template.Must(template.New("report").Funcs(printFunctions).Parse(`<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Zuma — отчёт</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:860px;margin:40px auto;padding:0 20px;color:#172638}h1,h2{color:#16395b}.meta{color:#465971;overflow-wrap:anywhere}li{margin:8px 0}.note{padding:16px;background:#eef3f7;border-left:4px solid #56728f}@media print{body{margin:0;max-width:none}.note{background:none}}</style></head>
-<body><h1>Zuma — отчёт сессии</h1><p>Профиль: {{.Name}}</p><p class="meta">Сессия: {{.Report.SessionID}}<br>Время: {{.Report.PerformedAt}}<br>Источник: {{.Report.Source}}<br>Протокол: {{.Report.ProtocolVersion}}; расчёты: {{.Report.CalculationVersion}}{{if .Report.BaselineSessionID}}<br>Предыдущая сессия: {{.Report.BaselineSessionID}}{{end}}</p>
-<h2>Результаты и сравнение</h2><ul>{{range .Facts}}{{if ne .Category "limitations"}}<li>{{.Text}}</li>{{end}}{{end}}</ul>
+<style>` + printStyle + `</style></head>
+<body><header><div class="wordmark">ZUMA / MISSION HEALTH</div><h1>Zuma — отчёт сессии</h1><span class="badge" data-source="{{.Report.Source}}">{{sourceTitle .Report.Source}}</span></header><p>Профиль: {{.Name}}</p><p class="meta">Сессия: {{.Report.SessionID}}<br>Время: {{.Report.PerformedAt}}<br>Источник: {{.Report.Source}}<br>Протокол: {{.Report.ProtocolVersion}}; расчёты: {{.Report.CalculationVersion}}{{if .Report.BaselineSessionID}}<br>Предыдущая сессия: {{.Report.BaselineSessionID}}{{end}}</p>
+<h2>Результаты и сравнение</h2><table><thead><tr><th>Раздел</th><th>Показатель и динамика</th></tr></thead><tbody>{{range .Facts}}{{if ne .Category "limitations"}}<tr><td>{{if eq .Category "comparisons"}}Динамика{{else}}Результат{{end}}</td><td>{{.Text}}</td></tr>{{end}}{{end}}</tbody></table>
 <h2>Ограничения</h2><div class="note"><ul>{{range .Facts}}{{if eq .Category "limitations"}}<li>{{.Text}}</li>{{end}}{{end}}</ul></div>
 <h2>Объяснение модели</h2>{{if .Report.Explanation}}<p>Модель {{.Report.Explanation.Model}} выбрала и упорядочила проверенные факты; текст сформирован сервером. Это не медицинская консультация.</p><ul>{{range .Report.Explanation.Observations}}<li>{{.Text}}</li>{{end}}{{range .Report.Explanation.Comparisons}}<li>{{.Text}}</li>{{end}}{{range .Report.Explanation.Limitations}}<li>{{.Text}}</li>{{end}}</ul>{{else}}<p>Объяснение не запрошено, недоступно или устарело. Числовые результаты доступны независимо от модели.</p>{{end}}
-</body></html>`))
+<div class="note"><strong>Показатели заданий не являются медицинским диагнозом.</strong><br>Результаты описывают выполнение заданий и не заменяют медицинскую консультацию.</div><footer>ZUMA · Прежний протокол реакции и памяти · Числовые результаты доступны независимо от модели</footer></body></html>`))
 
 func (a *api) reportHTML(w http.ResponseWriter, r *http.Request) {
 	id, ok := key(w, r)

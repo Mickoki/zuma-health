@@ -9,6 +9,7 @@ var game_area: Control
 var status: Label
 var level: OptionButton
 var history: VBoxContainer
+var footer: Label
 var profile_id := ""
 var base_url := ""
 var history_revision := 0
@@ -17,19 +18,20 @@ const HISTORY_PAGE_SIZE := 10
 
 func _ready() -> void:
 	theme = preload("res://addons/zuma_minigames/theme.tres")
-	var background := ColorRect.new()
-	background.color = Color("08121f")
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
+	add_child(preload("res://addons/zuma_minigames/ui/orbit_background.gd").new())
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
 	add_child(margin)
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
 	margin.add_child(column)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(scroll)
 	menu = VBoxContainer.new()
+	menu.add_theme_constant_override("separation", 12)
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
 	_add_label(menu, "ZUMA / МИНИ-ИГРЫ", 26)
@@ -41,9 +43,20 @@ func _ready() -> void:
 	menu.add_child(level)
 	var grid := GridContainer.new()
 	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
 	menu.add_child(grid)
 	for item in [["fifteen", "Пятнашки"], ["pairs", "Найди пару"], ["math", "Математика"], ["chimp", "Запомни числа"]]:
-		_add_button(grid, item[1], _launch.bind(item[0]))
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(card)
+		var card_column := VBoxContainer.new()
+		card.add_child(card_column)
+		var launch := _add_button(card_column, item[1], _launch.bind(item[0]))
+		launch.icon = load("res://assets/icons/%s.svg" % item[0])
+		launch.add_theme_constant_override("h_separation", 14)
+		launch.custom_minimum_size.y = 64
+		_add_label(card_column, {"fifteen": "Соберите поле 4×4", "pairs": "Запомните карточки", "math": "Ответьте быстрее таймера", "chimp": "Восстановите порядок"}[item[0]], 15)
 	var actions := HBoxContainer.new()
 	menu.add_child(actions)
 	_add_button(actions, "Повторить отправку", func(): module.retry_pending())
@@ -61,6 +74,14 @@ func _ready() -> void:
 	module.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	module.module_exit_requested.connect(_back_to_menu)
 	module.delivery_changed.connect(_delivery)
+	footer = _footer()
+	column.add_child(footer)
+
+func _footer() -> Label:
+	var footer := Label.new()
+	footer.text = "Показатели заданий не являются медицинским диагнозом."
+	footer.add_theme_font_size_override("font_size", 12)
+	return footer
 
 func open_for_profile(profile: Dictionary, url: String, survey: Dictionary) -> bool:
 	var id: String = profile.get("id", "")
@@ -89,10 +110,12 @@ func _launch(game: String) -> void:
 		return
 	menu.get_parent().visible = false
 	game_area.visible = true
+	footer.visible = false
 
 func _back_to_menu() -> void:
 	game_area.visible = false
 	menu.get_parent().visible = true
+	footer.visible = true
 	_load_history()
 
 func _close() -> void:

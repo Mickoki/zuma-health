@@ -38,7 +38,8 @@ func run() -> void:
 						break
 					view.grid.get_child(index).pressed.emit()
 			"pairs":
-				await create_timer(session.config.preview_ms / 1000.0 + 0.1).timeout
+				while view.elapsed() < session.config.preview_ms + 20:
+					await process_frame
 				for symbol in range(session.config.pairs):
 					var first: int = session.cards.find(symbol)
 					var second: int = session.cards.find(symbol, first + 1)

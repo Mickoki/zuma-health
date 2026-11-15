@@ -15,11 +15,7 @@ var _local_owner: String = "demo-local"
 
 func _ready() -> void:
 	theme = preload("res://addons/zuma_minigames/theme.tres")
-	var background := ColorRect.new()
-	background.color = Color("08121f")
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(background)
+	add_child(preload("res://addons/zuma_minigames/ui/orbit_background.gd").new())
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for edge in ["left", "right", "top", "bottom"]:

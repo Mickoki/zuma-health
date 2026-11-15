@@ -1,5 +1,11 @@
 # Zuma
 
+Текущий редизайн основан на макетах Google Stitch: космический фон, единая тема,
+боковая навигация, SVG-иконки и A4-отчёты. Опрос, история, динамика и справка
+сохранены. Клавиши в играх: R — новая попытка, Esc — назад, 1–4 — ответ в
+математике; потеря фокуса завершает попытку и открывает оверлей.
+[Проверка редизайна](docs/stitch-redesign-verification.md).
+
 Прототип для задачи NASA Space Apps Create Health Monitoring Software for Astronauts on Space Missions:
 https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/
 
