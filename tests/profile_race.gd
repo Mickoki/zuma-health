@@ -9,7 +9,7 @@ func check(condition: bool, message: String) -> void:
 		failed = true
 
 func find_name_input(node: Node) -> LineEdit:
-	if node is LineEdit and node.placeholder_text == "Имя участника":
+	if node is LineEdit and node.placeholder_text == "Crew member name":
 		return node
 	for child in node.get_children():
 		var found := find_name_input(child)
@@ -44,9 +44,9 @@ func run() -> void:
 	app.show_home()
 	app.refresh_profiles(app.selected_profile.id)
 	var name_input := find_name_input(app.content)
-	name_input.text = "Новое имя"
+	name_input.text = "New name"
 	await create_timer(0.6).timeout
-	check(is_instance_valid(name_input) and name_input.text == "Новое имя", "refresh preserves profile name input")
+	check(is_instance_valid(name_input) and name_input.text == "New name", "refresh preserves profile name input")
 	if not failed:
 		print("PROFILE RACE TEST PASSED")
 	quit(1 if failed else 0)

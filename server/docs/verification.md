@@ -1,17 +1,17 @@
-# Проверка backend Zuma
+# Zuma backend verification
 
-Дата: 2026-11-14 (Asia/Qyzylorda). Проверена реализация в ветке `feat/go-backend`.
-Все проверки использовали только явно синтетические данные и временные базы.
+Date: 2026-11-14 (Asia/Qyzylorda). Verified the implementation on branch `feat/go-backend`.
+All checks used explicitly synthetic data and temporary databases only.
 
-## Окружение
+## Environment
 
 - Windows amd64; `go version go1.27.3 windows/amd64`.
-- Go-модуль требует Go 1.26+, SQLite-драйвер `modernc.org/sqlite v1.62.0`.
-- Локальная Ollama 0.40.16, установленная `qwen3:8b` (ID b54de8fcfb8c).
+- The Go module requires Go 1.26+; SQLite driver `modernc.org/sqlite v1.62.0`.
+- Local Ollama 0.40.16 with `qwen3:8b` installed (ID b54de8fcfb8c).
 
-## Автоматические проверки
+## Automated checks
 
-Команды из `server/`:
+Commands from `server/`:
 
 ```powershell
 go test -count=1 -json ./...
@@ -21,99 +21,99 @@ $env:CGO_ENABLED = '0'
 go build -o zuma.exe ./cmd/zuma
 ```
 
-Результат: 58 записей PASS для именованных тестов и подтестов, 0 FAIL;
-go vet — exit 0; gofmt — пустой вывод; сборка Windows amd64 — exit 0,
-бинарник 21 014 528 байт. Сборка с CGO_ENABLED=0 подтверждает отсутствие
-необходимости в C-компиляторе. Тесты cmd/zuma отдельно не выделены: точка входа
-проверена запуском реального бинарника. Race detector не запускался.
+Result: 58 PASS records for named tests and subtests, 0 FAIL;
+go vet exited 0; gofmt produced no output; the Windows amd64 build exited 0,
+with a binary size of 21 014 528 bytes. Building with CGO_ENABLED=0 confirms that
+no C compiler is required. cmd/zuma has no separate tests: the entry point
+was checked by running the actual binary. The race detector was not run.
 
-## Соответствие требованиям
+## Requirements coverage
 
-| Требование | Проверенное доказательство |
+| Requirement | Verified evidence |
 | --- | --- |
-| Среднее/медиана и память | TestCalculateKnownResults: 100/200/300/400 мс → 250 мс, 3/4 → 75%, baseline 200 мс → +50 мс / +25% |
-| Отсутствующие данные | TestNoValidReaction: null для среднего/медианы, null comparison без baseline |
-| Совместимость baseline | TestIncompatibleBaseline, TestBaselineByPerformedTime, TestSourceIsolation: профиль, протокол, source, строго более раннее время |
-| Обязательные поля/нулевые значения | TestValidateRequiredZeroValues, TestValidateBounds, TestValidationResponses |
-| Полный HTTP-сценарий | TestFullSessionWorkflow, TestPagination, TestUnknownResources, реальные PowerShell-запросы |
-| Сохранность SQLite и миграции | TestPersistenceAfterReopen, TestMigrateTwice, реальный перезапуск с той же базой |
-| Атомарность и повторы | TestMissingProfileAtomicity, TestIdempotencyAndConflict, TestConcurrentReplay, TestReplayHTTP |
-| Числовая эквивалентность повторов | TestSignedZeroReplay: -0 и 0 не создают конфликт, входные указатели не изменяются |
-| Строгие HTTP-ошибки | TestValidationResponses: неверный JSON, неизвестное поле, второе JSON-значение, null/пропущенное поле, диапазон, Content-Type и >256 KiB |
-| reaction_ms отсутствует у пропусков | TestNullReactionTimeRejectedForNonValidOutcome: явный null отклоняется для missed и premature |
-| Печатный HTML | TestHTMLInjectionEscaped и настоящий GET report.html: 200, имя экранировано, показатели видимы |
-| Проверка фактов модели | TestValidFactSelection, TestUnknownFactRejected, TestCrossCategoryRejected, TestExtraFieldsRejected, TestMalformedSelectionRejected, TestMandatoryLimitations |
-| Ограничение ресурсов модели | TestOversizedResponse, TestTimeoutReleasesSlot, TestBusy |
-| Отмена активной генерации | TestInFlightCancellation: сервер Ollama получает отмену контекста, следующий запрос ready |
-| Сохранение готового объяснения при сбоях | TestFailedRegenerationPreservesExplanation, TestInterruptedRegenerationPreservesExplanation (cancel/timeout), реальный offline-перезапуск |
-| Устаревание объяснения | TestExplanationFingerprint, TestBackfillInvalidatesExplanation |
-| Offline при сбое модели | TestWorkflowWithExternalNetworkDenied, TestUnavailable; настоящий бинарник с ZUMA_OLLAMA_URL=http://127.0.0.1:1 |
-| Отсутствие внешних обращений адаптера | TestExternalConnectionsDenied проверяет отказ transport до соединения; внешние base URL отклоняются, proxy отключён |
-| Конфигурация локального запуска | TestDefaults, TestRejectNonLoopbackListen, TestInvalidConfig |
+| Mean/median and memory | TestCalculateKnownResults: 100/200/300/400 ms → 250 ms, 3/4 → 75%, baseline 200 ms → +50 ms / +25% |
+| Missing data | TestNoValidReaction: null mean/median, null comparison without a baseline |
+| Baseline compatibility | TestIncompatibleBaseline, TestBaselineByPerformedTime, TestSourceIsolation: profile, protocol, source, strictly earlier time |
+| Required fields/zero values | TestValidateRequiredZeroValues, TestValidateBounds, TestValidationResponses |
+| Complete HTTP workflow | TestFullSessionWorkflow, TestPagination, TestUnknownResources, real PowerShell requests |
+| SQLite persistence and migrations | TestPersistenceAfterReopen, TestMigrateTwice, real restart with the same database |
+| Atomicity and replays | TestMissingProfileAtomicity, TestIdempotencyAndConflict, TestConcurrentReplay, TestReplayHTTP |
+| Numeric equivalence in replays | TestSignedZeroReplay: -0 and 0 do not conflict; input pointers remain unchanged |
+| Strict HTTP errors | TestValidationResponses: malformed JSON, unknown field, second JSON value, null/missing field, bounds, Content-Type, and >256 KiB |
+| reaction_ms absent for skipped attempts | TestNullReactionTimeRejectedForNonValidOutcome: explicit null rejected for missed and premature |
+| Printable HTML | TestHTMLInjectionEscaped and actual GET report.html: 200, escaped name, visible metrics |
+| Model fact validation | TestValidFactSelection, TestUnknownFactRejected, TestCrossCategoryRejected, TestExtraFieldsRejected, TestMalformedSelectionRejected, TestMandatoryLimitations |
+| Model resource limits | TestOversizedResponse, TestTimeoutReleasesSlot, TestBusy |
+| Active generation cancellation | TestInFlightCancellation: the Ollama server receives context cancellation, next request ready |
+| Preserving ready explanations on failure | TestFailedRegenerationPreservesExplanation, TestInterruptedRegenerationPreservesExplanation (cancel/timeout), real offline restart |
+| Explanation invalidation | TestExplanationFingerprint, TestBackfillInvalidatesExplanation |
+| Offline behavior when the model fails | TestWorkflowWithExternalNetworkDenied, TestUnavailable; actual binary with ZUMA_OLLAMA_URL=http://127.0.0.1:1 |
+| No external adapter connections | TestExternalConnectionsDenied checks transport rejection before connecting; external base URLs rejected, proxy disabled |
+| Local launch configuration | TestDefaults, TestRejectNonLoopbackListen, TestInvalidConfig |
 
-## Настоящая Qwen3 8B
+## Real Qwen3 8B
 
-Запущен Windows-бинарник на `127.0.0.1:18080` с отдельной тестовой SQLite.
-Выполнен `examples/requests.ps1 -BaseUrl http://127.0.0.1:18080 -Explain`:
+Started the Windows binary on `127.0.0.1:18080` with a separate test SQLite database.
+Ran `examples/requests.ps1 -BaseUrl http://127.0.0.1:18080 -Explain`:
 
-- POST профиля и сессии успешны; повтор вернул тот же session_id.
-- История содержит одну сессию нового профиля.
-- Отчёт: median_ms=250, memory_percent=75.
-- POST explanation вернул status=ready, model=qwen3:8b.
-- Финальная проверка после исправлений: 5 observation-фактов, 3 обязательных
-  ограничения (not_medical, synthetic, no_baseline).
-- Повторный GET report вернул сохранённое ready-объяснение; HTML — 200.
+- Profile and session POSTs succeeded; replay returned the same session_id.
+- History contained one session for the new profile.
+- Report: median_ms=250, memory_percent=75.
+- POST explanation returned status=ready, model=qwen3:8b.
+- Final check after fixes: 5 observation facts, 3 mandatory
+  limitations (not_medical, synthetic, no_baseline).
+- Another GET report returned the saved ready explanation; HTML returned 200.
 
-Это реальный запрос к установленной модели, не mock.
+This was an actual request to the installed model, not a mock.
 
-## Перезапуск и недоступная модель
+## Restart and unavailable model
 
-Бинарник остановлен, затем запущен с той же SQLite и
-ZUMA_OLLAMA_URL=http://127.0.0.1:1. Проверено:
+Stopped the binary, then restarted it with the same SQLite database and
+ZUMA_OLLAMA_URL=http://127.0.0.1:1. Verified:
 
-- ранее созданная сессия осталась в истории;
-- /readyz вернул ready, model/status сообщил available=false;
-- генерация вернула unavailable, а прежнее готовое объяснение сохранилось;
-- числовой и HTML-отчёты доступны (HTML 200, медиана 250 мс);
-- новый полный PowerShell-сценарий (профиль, сессия, повтор, история, отчёт)
-  прошёл; объяснение честно вернуло unavailable.
+- The previously created session remained in history.
+- /readyz returned ready; model/status reported available=false.
+- Generation returned unavailable, while the previous ready explanation was retained.
+- Numeric and HTML reports were available (HTML 200, median 250 ms).
+- A new complete PowerShell workflow (profile, session, replay, history, report)
+  passed; the explanation accurately returned unavailable.
 
-Системное подключение к интернету не отключалось и настройки firewall не менялись.
-Offline проверен на уровне компонентов: SQLite локальна, модель локальна,
-HTTP-транспорт отклоняет внешние адреса и не использует proxy. Для зависимостей
-и первоначальной загрузки модели сеть всё ещё нужна, как описано в README.
+The system internet connection was not disabled, and firewall settings were unchanged.
+Offline behavior was checked at the component level: SQLite is local, the model is local,
+and the HTTP transport rejects external addresses and does not use proxies. Network access
+is still required for dependencies and the initial model download, as described in the README.
 
-## Контракт и клиентский пример
+## Contract and client example
 
-OpenAPI 3.1 структурно проверен `@apidevtools/swagger-parser 13.1.0`.
-Документированный пример сессии и реальные ответы всех JSON-endpoint проверены
-по соответствующим схемам с `ajv 8.20.0` и `ajv-formats 3.0.1`, включая
-сохранённый отчёт с ready-объяснением настоящей Qwen. Все проверки PASS.
-Эти инструменты использованы для проверки и не являются зависимостями сервера.
+OpenAPI 3.1 was structurally validated with `@apidevtools/swagger-parser 13.1.0`.
+The documented session example and actual responses from all JSON endpoints were validated
+against their respective schemas using `ajv 8.20.0` and `ajv-formats 3.0.1`, including
+the saved report with a ready explanation from real Qwen. All checks passed.
+These tools were used for verification and are not server dependencies.
 
-`server/examples/client.gd` прошёл синтаксический разбор gdtoolkit 4.5.0.
-Godot Engine в окружении не найден; запуск примера внутри Godot и совместная
-игровая сборка не проверены. После исходной проверки команда добавила стартовое
-меню, полученное из main при подготовке PR; оно не подключено к API, мини-игр
-пока нет. Контракт HTTP и числовые результаты проверены независимо от клиента.
+`server/examples/client.gd` passed syntax parsing with gdtoolkit 4.5.0.
+Godot Engine was not found in the environment; running the example inside Godot and
+the combined game build were not verified. After the original verification, the team added
+the start menu obtained from main while preparing the PR; it is not connected to the API,
+and there are no minigames yet. The HTTP contract and numeric results were checked independently of the client.
 
-## Независимый обзор
+## Independent review
 
-Отдельный агент проверил весь backend по утверждённой спецификации и плану.
-Critical/Important замечаний не выявлено. Найдены три пограничных пункта:
-явный reaction_ms:null, signed zero в повторе и недостаточная проверка
-отмены активного запроса. Первые два воспроизведены падающими регрессионными
-тестами и исправлены; отмена, освобождение слота и сохранение объяснения
-подтверждены дополнительными тестами. После исправлений весь набор пройден заново.
+A separate agent reviewed the entire backend against the approved specification and plan.
+No Critical/Important findings were identified. Three edge cases were found:
+explicit reaction_ms:null, signed zero in replays, and insufficient testing of
+active request cancellation. The first two were reproduced with failing regression
+tests and fixed; cancellation, slot release, and explanation preservation
+were confirmed by additional tests. The full suite was rerun after the fixes.
 
-## Ограничения результата
+## Limitations of the result
 
-Сервер предназначен для доверенного локального desktop-сценария без авторизации,
-шифрования базы и CORS. Это не подтверждённая медицинская система. Qwen выбирает
-серверные факты, свободный текст не публикуется. PDF получается печатью HTML
-средствами браузера. Данные тестов, веса модели и бинарник исключены из Git.
-Исходная проверка завершена до публикации. По последующему запросу пользователя
-ветка `feat/go-backend` отправлена на GitHub, создан PR №1 в main. В неё включены
-изменения main до `210991e`: стартовое меню и правила .gitignore. Конфликт
-add/add в .gitignore разрешён объединением обоих наборов исключений; файлы
-сцены/скриптов команды сохранены без изменений. Основная ветка не изменялась.
+The server is intended for a trusted local desktop workflow without authentication,
+database encryption, or CORS. It is not a validated medical system. Qwen selects
+server facts; free-form text is not published. PDF is produced by printing HTML
+through the browser. Test data, model weights, and the binary are excluded from Git.
+The original verification was completed before publication. At the user's subsequent request,
+branch `feat/go-backend` was pushed to GitHub and PR #1 targeting main was created. It includes
+main changes through `210991e`: the start menu and .gitignore rules. The
+add/add conflict in .gitignore was resolved by combining both sets of exclusions;
+the team's scene/script files were preserved unchanged. The main branch was not modified.

@@ -47,8 +47,8 @@ func run() -> void:
 		await create_timer(0.05).timeout
 	await app.request(HTTPClient.METHOD_GET, "/test/game_data")
 	app.show_home()
-	check(await wait_text(app.home_game_latest_section, "Найди пару"), "latest game appears on overview")
-	check(contains(app.home_game_latest_section, "завершено"), "outcome displayed")
+	check(await wait_text(app.home_game_latest_section, "Find the Pair"), "latest game appears on overview")
+	check(contains(app.home_game_latest_section, "completed"), "outcome displayed")
 	app.show_trends()
 	for i in range(100):
 		if is_instance_valid(app.trend_protocol) and app.trend_protocol.is_inside_tree():
@@ -64,8 +64,8 @@ func run() -> void:
 		app.trend_protocol.item_selected.emit(index)
 		check(app.trend_chart.points.size() == 11, "game values separated by source and difficulty")
 		check(app.trend_chart.points.back().value == 8, "latest saved survey shown")
-		check("времени относится к игре" in app.trend_hint.text, "survey timing is explained")
-		check("Без значения: 1" in app.trend_summary.text, "missing survey remains a gap")
+		check("timestamp refers to the game" in app.trend_hint.text, "survey timing is explained")
+		check("Missing values: 1" in app.trend_summary.text, "missing survey remains a gap")
 		app.trend_metric.select(4)
 		app.trend_metric.item_selected.emit(4)
 		check(app.trend_chart.points.back().value == null and not is_instance_valid(app.trend_loader), "legacy game metric is not fabricated")
@@ -73,14 +73,14 @@ func run() -> void:
 	var host = app.minigames_host
 	check(is_instance_valid(host) and host.visible, "history accessible without saved survey")
 	if is_instance_valid(host):
-		check(await wait_text(host.history, "1–10 из 13"), "first game history page")
+		check(await wait_text(host.history, "1–10 of 13"), "first game history page")
 		host._launch("pairs")
-		check(not host.game_area.visible and "сохраните опрос" in host.status.text, "game requires a saved survey")
-		var next := find_button(host.history, "Следующие")
+		check(not host.game_area.visible and "save a survey" in host.status.text, "game requires a saved survey")
+		var next := find_button(host.history, "Next")
 		check(next != null and not next.disabled, "next page available")
 		if next != null:
 			next.pressed.emit()
-			check(await wait_text(host.history, "11–13 из 13"), "second game history page")
+			check(await wait_text(host.history, "11–13 of 13"), "second game history page")
 	if not failed:
 		print("GAME OVERVIEW TRENDS PASSED")
 	quit(1 if failed else 0)

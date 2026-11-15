@@ -1,352 +1,356 @@
-# Zuma: модуль четырёх мини-игр и расширение backend
+# Zuma: four-minigame module and backend extension
 
-Дата: 2026-11-14. Статус: утверждена пользователем, включая случайность и +50% параметров; самостоятельная реализация разрешена без промежуточных согласований.
+Date: 2026-11-14. Status: approved by the user, including randomness and +50% parameters; independent implementation authorized without intermediate approvals.
 
-## Цель и принятые решения
+## Goal and decisions
 
-Создать четыре мини-игры и хранение их независимых прохождений, историю,
-сопоставление результатов, отчёты и объяснения Qwen3 8B. Пользователь выбрал
-поставку одной переносимой папкой `addons/zuma_minigames/` с отдельной
-демонстрационной сценой. Godot 4.7.2 / GDScript, существующий Go backend,
-SQLite и локальная Ollama сохраняются.
+Create four minigames and storage for their independent runs, history,
+result comparisons, reports, and Qwen3 8B explanations. The user selected
+delivery as one portable folder, `addons/zuma_minigames/`, with a separate
+demonstration scene. Godot 4.7.2 / GDScript, the existing Go backend,
+SQLite, and local Ollama are retained.
 
-Правила и конкретные значения ниже предложены исполнителем на основе цели;
-они входят в предмет согласования документа. Главное меню приложения не
-подключается к модулю автоматически. Существующие пользовательские изменения
-project.godot и UID-файл примера не перезаписываются и не включаются в коммиты
-этой работы. Разработка ведётся в текущей папке в новой ветке feat/minigames-module.
+The rules and concrete values below were proposed by the implementer based
+on the goal; they are subject to approval of this document. The main application
+menu is not automatically connected to the module. Existing user changes to
+project.godot and the example's UID file are neither overwritten nor included
+in this work's commits. Development takes place in the current folder on a new
+feat/minigames-module branch.
 
-Сценарий результата: инструкция → запуск задания → прохождение → локальный
-результат и сохранение → отправка при доступности сервера → история и отчёт.
-Ни модель, ни сервер не нужны для самой игры. Работа не включает медицинскую
-валидацию, диагнозы, общий балл здоровья, часы, авторизацию или публикацию в GitHub.
+Result workflow: instructions → start task → play → local result and save →
+send when the server is available → history and report. Neither the model nor
+the server is needed for gameplay itself. The work excludes medical validation,
+diagnoses, an overall health score, watches, authentication, and GitHub publication.
 
-## Подходы
+## Approaches
 
-1. **Выбран:** addon с собственными сценами, ресурсами, GDScript API и demo.tscn
-   внутри существующего проекта. Копируется одна папка, без Autoload и
-   зависимости от главного меню. Демонстрация запускается через F6 или --scene.
-2. Отдельный Godot-проект и экспортируемая библиотека: удобное отдельное открытие,
-   но требуется дополнительно поддерживать перенос и общий источник ресурсов.
+1. **Selected:** addon with its own scenes, resources, GDScript API, and demo.tscn
+   inside the existing project. Copy one folder; no Autoload or main-menu
+   dependency. Launch the demonstration with F6 or --scene.
+2. Separate Godot project and exportable library: convenient independent
+   opening, but transfer and a shared resource source also require maintenance.
 
-Addon не является EditorPlugin: включать плагин в настройках редактора не нужно.
+The addon is not an EditorPlugin: it does not need enabling in editor settings.
 
-## Игры и правила v1
+## Games and v1 rules
 
-У каждой игры стабильный game_id и rules_version=1. Исходные раскладки,
-задания, принятые действия и их времена записываются; backend воспроизводит
-логику и независимо считает показатели. Случайность Go и Godot не требуется
-синхронизировать: проверяются переданные исходные данные, а не алгоритм RNG.
-Параметры сложности входят в ключ сопоставимости, seed/сама случайная раскладка — нет.
+Each game has a stable game_id and rules_version=1. Initial layouts, tasks,
+accepted actions, and timestamps are recorded; the backend replays the logic
+and independently calculates measures. Go and Godot randomness need not be
+synchronized: submitted initial data is validated, rather than the RNG algorithm.
+Difficulty parameters enter the comparability key; the seed/random layout does not.
 
-### Случайность и повышение сложности
+### Randomness and difficulty increase
 
-По запросу пользователя каждый новый запуск получает новую случайную раскладку
-или набор заданий. Используется локальный RandomNumberGenerator с новым seed,
-без изменения глобального генератора принимающего приложения. Пятнашки
-перемешиваются случайными легальными ходами, пары — случайной перестановкой
-колоды, математика — выборкой разных примеров и перемешиванием вариантов,
-chimp — новыми позициями чисел в каждом раунде, включая повтор после ошибки.
-Непосредственно предыдущая раскладка той же игры/сложности в текущем запуске
-модуля не повторяется: совпадение обнаруживается и генерируется другой вариант.
-После перезапуска приложения новый seed также создаётся, но хранить весь архив
-раскладок и запрещать повтор навсегда не требуется.
+At the user's request, every new start receives a fresh random layout or task
+set. Use a local RandomNumberGenerator with a new seed without changing the
+host application's global generator. Fifteen Puzzle is shuffled using random
+legal moves; Find the Pair uses a random deck permutation; Speed Math samples
+distinct problems and shuffles options; chimp uses new number positions in
+every round, including retries after mistakes. The immediately preceding layout
+for the same game/difficulty in the current module launch is not repeated:
+detect a match and generate a different variant. A new seed is also created
+after restarting the application, but retaining a complete layout archive and
+prohibiting repetition forever is unnecessary.
 
-Пользователь запросил повышение сложности на 50%. Ниже увеличены выбранные
-параметры нагрузки: число перемешиваний пятнашек, количество пар, верхние
-границы операндов и число запоминаемых клеток. Время показа, лимиты времени,
-количество математических задач и допустимых ошибок дополнительно не ужесточаются.
-Дробное количество клеток округляется вверх. Это изменение параметров задания,
-а не утверждение о научно измеренном росте когнитивной сложности ровно на 50%.
+The user requested a 50% difficulty increase. Selected load parameters below
+are increased: Fifteen Puzzle shuffle count, number of pairs, operand upper
+bounds, and number of cells to remember. Preview times, time limits, number
+of arithmetic problems, and allowed mistakes are not tightened further.
+Fractional cell counts round up. This changes task parameters; it does not
+claim a scientifically measured cognitive difficulty increase of exactly 50%.
 
-### Пятнашки — fifteen
+### Fifteen Puzzle — fifteen
 
-Поле 4×4, числа 1–15 и пустая клетка 0. Цель: 1–15 по строкам, пустая клетка
-внизу справа. Перемещается только соседняя по стороне плитка. Неверные нажатия
-не являются ходами и не добавляются в журнал принятых действий.
+A 4×4 board with numbers 1–15 and empty cell 0. Goal: 1–15 in row order,
+empty cell at bottom right. Only an orthogonally adjacent tile can move.
+Invalid clicks are not moves and are not added to the accepted-action log.
 
-Сложность easy/normal/hard: 30/90/180 перемешивающих ходов из решённого состояния
-(исходные 20/60/120 увеличены на 50%).
-Непосредственный обратный ход при перемешивании запрещён; итог не должен быть
-решённым. Сохраняются последовательность перемешивания и initial_board.
-Сервер проверяет легальность перемешивания, длину, совпадение раскладки,
-перестановку 0–15, разрешимость и каждый ход игрока. Число перемешиваний —
-параметр задания, не утверждение об оптимальном расстоянии до решения.
+Easy/Normal/Hard: 30/90/180 shuffle moves from the solved state
+(original 20/60/120 increased by 50%).
+Immediate reversal during shuffling is prohibited; the final board must not
+be solved. Save the shuffle sequence and initial_board. The server checks
+shuffle legality, length, matching layout, permutation of 0–15, solvability,
+and every player move. Shuffle count is a task parameter, not a claim about
+the optimal distance to a solution.
 
-Показатели: принятые ходы, duration_ms до решения/прерывания, solved.
-Нельзя помечать completed нерешённое поле или продолжать ходы после решения.
-Игрового таймера на поражение нет: время отображается и измеряется.
+Measures: accepted moves, duration_ms until solution/interruption, solved.
+An unsolved board cannot be marked completed; moves cannot continue after
+solution. There is no loss timer: time is displayed and measured.
 
-### Найди пару — pairs
+### Find the Pair — pairs
 
-easy/normal/hard: 9/12/18 пар (увеличение с 6/8/12 на 50%), предварительный
-показ 5000/4000/3000 мс. Максимум 36 карточек должен помещаться в viewport 960×540.
-Каждый символ встречается ровно дважды. Все карточки сначала открыты, ввод
-заблокирован; после показа карточки закрываются. Игрок открывает две разные
-ещё не найденные карточки. Совпадение оставляет пару открытой. Несовпадение
-показывается 700 мс, затем обе карточки скрываются; во время задержки ввод заблокирован.
-Повторный клик на той же или уже найденной карточке игнорируется.
+Easy/Normal/Hard: 9/12/18 pairs (50% increase from 6/8/12), preview
+5000/4000/3000 ms. The maximum 36 cards must fit a 960×540 viewport.
+Each symbol occurs exactly twice. All cards start face up with input locked;
+after the preview they turn face down. The player flips two distinct unmatched
+cards. A match leaves the pair face up. A mismatch is shown for 700 ms before
+both cards are hidden; input is locked during the delay. Clicking the same
+card again or an already-matched card is ignored.
 
-Записываются initial_cards и последовательность принятых flip с индексами
-и временем. Сервер проверяет пары, границы индексов, порядок действий,
-окончание показа, задержку после ошибки, найденные/открытые карточки.
-В completed найдены все пары, незаконченный выбор одной карточки допустим
-только у aborted. Показатели: найденные пары, попытки (два открытия), ошибки
-(несовпавшие попытки), точность пар, время игры после показа и полная длительность.
-При нуле попыток точность null. Символы и оформление создаются внутри модуля.
+Record initial_cards and the sequence of accepted flip actions with indices
+and times. The server validates pairs, index bounds, action order, preview
+completion, post-error delay, and matched/open cards. In completed runs, all
+pairs are found; an unfinished one-card selection is allowed only for aborted
+runs. Measures: matched pairs, attempts (two flips), errors (mismatched attempts),
+pair accuracy, play time after preview, and total duration. With zero attempts,
+accuracy is null. Symbols and visuals are created within the module.
 
-### Математика на скорость — math
+### Speed Math — math
 
-До старта генерируются 20 разных случайных заданий; общий лимит 60000 мс. На один пример
-easy/normal/hard выделяется максимум 8000/6000/4000 мс, но не больше остатка
-общего времени. Можно ответить или нажать «Пропустить»; истечение времени
-также считается пропуском. Игра завершается после 20 заданий или общего лимита.
-Это нормальный completed, даже если правильных ответов нет. Будущие ещё не
-показанные задания пропусками не считаются.
+Generate 20 distinct random tasks before starting; overall limit 60000 ms.
+Each problem allows at most 8000/6000/4000 ms for Easy/Normal/Hard, bounded
+by remaining overall time. Answer or click “Skip”; timeout also counts as a
+skip. The game ends after 20 tasks or the overall limit. This is normal
+completed status even without correct answers. Future tasks not yet shown
+are not counted as skipped.
 
-У каждого примера четыре уникальных целочисленных ответа, ровно один верный.
-Операции задаются enum add/sub/mul/div, а не строкой для eval.
+Each problem has four unique integer answer options with exactly one correct
+answer. Operations use enum add/sub/mul/div rather than a string for eval.
 
-- easy: 10 сложений и 10 вычитаний, операнды 0–30; вычитание без отрицательного результата.
-- normal: 7 сложений, 7 вычитаний (0–75, результат неотрицательный),
-  6 умножений с операндами 0–18.
-- hard: по 5 заданий каждой операции; сложение/вычитание 0–150,
-  умножение 2–30; деление нацело: делитель 2–18, частное 2–30.
-- Порядок задач и вариантов перемешан; значения вариантов в диапазоне -1000…1000.
+- easy: 10 additions and 10 subtractions, operands 0–30; subtraction has a nonnegative result.
+- normal: 7 additions, 7 subtractions (0–75, nonnegative result), and 6 multiplications with operands 0–18.
+- hard: 5 tasks per operation; addition/subtraction 0–150, multiplication 2–30; exact division: divisor 2–18, quotient 2–30.
+- Task and option order is shuffled; option values range from -1000 to 1000.
 
-Верхние границы операндов увеличены на 50% относительно исходного предложения.
-Общего статичного списка из 20 задач нет: генератор выбирает из полного
-конечного пространства разрешённых выражений. Для сложения/умножения
-перестановка операндов не создаёт новый пример: 2+3 и 3+2 имеют один ключ.
-Для вычитания учитываются только a>=b, деление — только целочисленное по правилам
-выше. Внутри прохождения ключи не повторяются. Варианты ответов в количество
-выражений не входят и генерируются отдельно.
+Operand upper bounds are increased by 50% from the initial proposal.
+There is no shared static list of 20 tasks: the generator samples from the
+complete finite space of allowed expressions. Swapping addition/multiplication
+operands does not create a new problem: 2+3 and 3+2 share a key. Subtraction
+includes only a>=b; division is exact under the rules above. Keys do not repeat
+within a run. Answer options do not count toward expression totals and are
+generated separately.
 
-| Сложность | Сложение | Вычитание | Умножение | Деление | Всего разных выражений |
+| Difficulty | Addition | Subtraction | Multiplication | Division | Total distinct expressions |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | easy | 496 | 496 | 0 | 0 | 992 |
 | normal | 2926 | 2926 | 190 | 0 | 6042 |
 | hard | 11476 | 11476 | 435 | 493 | 23880 |
 
-Для диапазона 0…M число сложений с a<=b и вычитаний с a>=b равно
-(M+1)(M+2)/2 на операцию. Умножения hard: 29*30/2=435;
-деления hard: 17 возможных делителей * 29 частных = 493.
-Каждое прохождение по-прежнему берёт 20 задач с заданными квотами операций.
+For range 0…M, the number of additions with a<=b and subtractions with a>=b
+is (M+1)(M+2)/2 per operation. Hard multiplication: 29*30/2=435;
+hard division: 17 possible divisors * 29 quotients = 493.
+Each run still takes 20 tasks with the specified operation quotas.
 
-Журнал содержит показ очередного примера и ответ/пропуск/timeout с временем.
-На границе дедлайна timeout имеет приоритет: принимается только ответ до дедлайна.
-Сервер проверяет арифметику, распределение операций, единственность правильного
-варианта, последовательность, показанные задания и дедлайны. Показатели:
-shown, correct, incorrect, skipped с причинами, answered, accuracy среди answered
-(null при нуле), среднее/медиана времени принятых ответов, число правильных
-ответов в минуту активной игры (null при нулевой длительности).
-Из-за задержки кадра событие timeout может быть записано позже дедлайна;
-это не разрешает поздний answer. После общего дедлайна новые задания не
-показываются; finish с time_limit возможен только при duration_ms >= 60000.
+The log contains each problem's display and answer/skip/timeout with times.
+At the deadline boundary, timeout takes priority: only answers before the
+deadline are accepted. The server checks arithmetic, operation distribution,
+exactly one correct option, sequence, shown tasks, and deadlines. Measures:
+shown, correct, incorrect, skipped with reasons, answered, accuracy among
+answered (null if zero), mean/median accepted-answer time, and correct answers
+per minute of active play (null for zero duration).
+Frame delay may record a timeout event after the deadline; this does not allow
+a late answer. No new tasks are shown after the overall deadline; finish with
+time_limit is possible only at duration_ms >= 60000.
 
-### Запоминание чисел — chimp
+### Remember the Numbers — chimp
 
-Собственная реализация механики из ссылки пользователя, без копирования
-графики, текста и кода сайта. Сетка 8×5. Числа 1…N занимают разные случайные
-клетки; остальные клетки не являются кнопками выбора.
+An original implementation of the mechanics in the user's link, without
+copying the site's graphics, text, or code. Grid: 8×5. Numbers 1…N occupy
+distinct random cells; other cells are not selection buttons.
 
-easy: начало 5, цель 12 чисел, максимум 4 ошибки; normal: начало 6, цель 18,
-максимум 3 ошибки; hard: начало 9, цель 24, максимум 2 ошибки.
-Стартовые и целевые размеры увеличены на 50%; исходные 3*1.5=4.5 округлены
-вверх до 5. Все размеры помещаются в сетку из 40 клеток.
-В начале раунда числа видны. После правильного выбора 1 числа на остальных
-клетках скрываются; нужно выбрать 2…N по памяти. Выбранные клетки отключаются.
-Неверный выбор сразу завершает раунд с ошибкой. После ошибки показывается
-новая раскладка с тем же N; после успеха N увеличивается на 1. Успешный раунд
-на целевом N завершает игру completed. Достижение лимита ошибок завершает failed.
+Easy: start 5, target 12 numbers, maximum 4 mistakes; Normal: start 6, target 18,
+maximum 3 mistakes; Hard: start 9, target 24, maximum 2 mistakes.
+Starting and target sizes are increased by 50%; original 3*1.5=4.5 rounds
+up to 5. All sizes fit the 40-cell grid.
+Numbers are visible at the start of a round. After correctly selecting 1,
+numbers on remaining cells are hidden; select 2…N from memory. Selected cells
+are disabled. A wrong choice immediately ends the round with an error. After
+an error, show a new layout with the same N; after success, increment N by 1.
+A successful round at target N ends the game as completed. Reaching the
+mistake limit ends it as failed.
 
-Записываются показ каждого раунда (positions по порядку чисел), выборы клеток
-и времена. Сервер проверяет разные позиции внутри сетки, стартовый размер,
-рост после успеха, повтор размера после ошибки, порядок выборов, лимит ошибок
-и терминальное состояние. Игрок подтверждает начало следующего раунда кнопкой;
-межраундовое ожидание входит в полную длительность, но не во время запоминания
-или выбора клеток. Показатели: успешные/ошибочные раунды, максимальный успешно
-пройденный размер (null, если успехов нет), ошибки, время просмотра до выбора 1
-и время выполнения раунда после выбора 1. Время запоминания не трактуется как диагноз.
+Record every round display (positions in number order), cell selections, and
+times. The server checks distinct positions within the grid, starting size,
+growth after success, repeated size after error, selection order, mistake
+limit, and terminal state. The player confirms the next round with a button;
+waiting between rounds counts toward total duration but not memorization or
+cell-selection time. Measures: successful/erroneous rounds, maximum successfully
+completed size (null without successes), errors, viewing time until selecting 1,
+and round execution time after selecting 1. Memorization time is not interpreted
+as a diagnosis.
 
-## Общий журнал, время и завершение
+## Shared log, time, and completion
 
-Единый envelope: client_run_id (UUID), game_id, rules_version, difficulty,
+Shared envelope: client_run_id (UUID), game_id, rules_version, difficulty,
 config, source (observed/synthetic), performed_at, status, finish_reason,
-duration_ms, initial, events. Раскладки/задания специфичны игре; events имеют
-kind и t_ms плюс документированные поля действия. Пустые/неизвестные поля
-и несогласованные типы отклоняются по схеме конкретной игры.
+duration_ms, initial, events. Layouts/tasks are game-specific; events have
+kind and t_ms plus documented action fields. Empty/unknown fields and
+inconsistent types are rejected according to each game's schema.
 
-performed_at — UTC RFC3339 начала задания, duration_ms/t_ms — целые
-миллисекунды монотонных часов Godot, без использования системных часов для
-длительностей. t_ms не убывают, находятся в [0,duration_ms]; финальное
-событие finish обязательно и совпадает с duration_ms. Последующих событий нет.
-Правила входных календарных меток и серверные идентификаторы остаются как в API v1.
-Фактическая передача позже не меняет performed_at.
+performed_at is the UTC RFC3339 task start; duration_ms/t_ms are integer
+milliseconds from Godot's monotonic clock, without using the system clock
+for durations. t_ms is nondecreasing and within [0,duration_ms]; a final
+finish event is required and equals duration_ms. No events follow it.
+Input calendar timestamp rules and server IDs remain as in API v1.
+Later delivery does not change performed_at.
 
-status: completed/failed/aborted. finish_reason валидируется по игре:
+status: completed/failed/aborted. Validate finish_reason by game:
 solved (fifteen/pairs), questions_done/time_limit (math), target_reached/
 mistake_limit (chimp), user_exit/focus_lost/host_removed/recording_limit (aborted).
-Нельзя выдать произвольный status вопреки воспроизведённому состоянию.
+An arbitrary status cannot contradict the replayed state.
 
-Нажатия «Назад», «Заново», выход из активной сцены завершают текущую попытку
-как aborted и сохраняют её, затем при необходимости создают новый UUID.
-Во время инструкции попытка ещё не начата, результата нет. Потеря фокуса
-прерывает начатое прохождение с focus_lost: скрытое ожидание и повторный
-просмотр не подменяют измерения. Продолжения прерванной игры в v1 нет.
-После штатного конца повторный сигнал завершения исключён.
+“Back”, “Restart”, and leaving an active scene finish and save the current
+attempt as aborted, then create a new UUID if needed. During instructions,
+the attempt has not started and has no result. Losing focus interrupts a
+started run with focus_lost: hidden waiting and repeat viewing must not distort
+measurements. Resuming an interrupted game is unsupported in v1.
+After normal completion, a second completion signal is prohibited.
 
-Технические пределы новых прохождений: 1 MiB JSON, не более 10000 событий,
-duration_ms не более 24 часов. При приближении к пределу записи модуль
-завершает попытку recording_limit до переполнения. Эти пределы не являются
-оценкой игрока. Старые endpoint сохраняют предел 256 KiB.
+Technical limits for new runs: 1 MiB JSON, at most 10000 events, duration_ms
+at most 24 hours. As recording approaches a limit, the module ends the attempt
+with recording_limit before overflowing. These limits are not a player assessment.
+Old endpoints retain their 256 KiB limit.
 
-Сервер проверяет внутреннюю согласованность журнала; он не может доказать
-достоверность клиентских часов или то, что за игрока не выполнял действия
-другой процесс. В отчёте это описательные данные локального клиента, не античит
-и не клинически валидированные измерения.
+The server checks internal log consistency; it cannot prove the client's clock
+is accurate or that another process did not act for the player. Reports describe
+local client data, not anti-cheat guarantees or clinically validated measurements.
 
-## Контракт модуля Godot
+## Godot module contract
 
-Папка addons/zuma_minigames содержит компонент-хост, четыре игровые сцены,
-отдельные классы правил, тему/ресурсы, transport/outbox, demo.tscn,
-инструкцию подключения и тестовые скрипты. Все обращения к ресурсам находятся
-в собственном пространстве addon; чужих сцен, Autoload, InputMap и имён узлов
-главного приложения нет. Общие class_name имеют префикс ZumaMinigames либо
-используются локальные preload, чтобы не конфликтовать с принимающим проектом.
+The addons/zuma_minigames folder contains a host component, four game scenes,
+separate rules classes, theme/resources, transport/outbox, demo.tscn,
+integration instructions, and test scripts. All resource references stay
+within the addon's namespace; there are no dependencies on external scenes,
+Autoloads, InputMap, or the main application's node names. Shared class_name
+values have the ZumaMinigames prefix, or local preload is used to avoid conflicts
+with the host project.
 
-Публичные операции: configure(options), start_game(game_id,difficulty),
-cancel_game(), retry_pending(). Сигналы: run_finished(payload),
+Public operations: configure(options), start_game(game_id,difficulty),
+cancel_game(), retry_pending(). Signals: run_finished(payload),
 delivery_changed(client_run_id,state,message), module_exit_requested().
-Точные GDScript-типы и Error-коды фиксируются в README/API-примере.
-Результат формируется и сигнализируется независимо от HTTP; ошибки записи
-или доставки также видимы, не выдаются за успешное сохранение.
+Exact GDScript types and Error codes are documented in README/API examples.
+Results are formed and signaled independently of HTTP; write/delivery errors
+are also visible and are not presented as successful persistence.
 
-Каждая сцена показывает инструкцию, параметры сложности, время/прогресс,
-доступное управление, результат, новый запуск и выход. Клавиатурный фокус
-кнопок и мышь; минимальный viewport 960×540, основной 1280×720. Демонстрация
-содержит выбор четырёх игр/сложности, профиль и состояние очереди. Точный
-визуальный стиль и размещение элементов оставлены исполнителю; текст на русском.
+Each scene shows instructions, difficulty settings, time/progress, available
+controls, results, restart, and exit. Buttons support keyboard focus and mouse;
+minimum viewport 960×540, main viewport 1280×720. The demonstration includes
+selection of four games/difficulty, a profile, and queue state. Exact visual
+style and layout are left to the implementer; text is in Russian.
 
-Демо запускается отдельно через F6 или CLI --scene и не меняет root main_scene.
-Должна быть проверена переносимость: только addon копируется в временный
-минимальный Godot-проект, где host получает сигналы результатов.
+The demo starts separately via F6 or CLI --scene and does not change the root
+main_scene. Portability must be tested: copy only the addon to a temporary
+minimal Godot project where the host receives result signals.
 
-## Надёжная offline-очередь
+## Reliable offline queue
 
-По умолчанию user://zuma_minigames/, каталог можно задать configure.
-Одна неизменяемая JSON-запись на client_run_id: owner_key, profile_id (если
-известен), адрес назначения и payload. Сначала запись во временный файл в том
-же каталоге, проверка ошибок, flush/close, затем переименование. Незавершённые
-или повреждённые записи сохраняются для восстановления/диагностики, не
-удаляются молча. Повторный enqueue того же UUID не создаёт новую попытку.
+Default: user://zuma_minigames/; configure can override the directory.
+One immutable JSON record per client_run_id: owner_key, profile_id (if known),
+destination address, and payload. First write to a temporary file in the same
+directory, check errors, flush/close, then rename. Incomplete or corrupted
+records are preserved for recovery/diagnostics, never silently deleted.
+Enqueuing the same UUID again does not create a new attempt.
 
-Для отправки нужен существующий серверный profile_id. При offline-запуске
-используется отдельный owner_key; до явной привязки host/demo к profile_id
-результаты остаются unassigned. Смена профиля не переназначает старые записи.
-Демо позволяет создать/выбрать серверный профиль и явно привязать локального
-владельца; основной host передаёт эту привязку через configure.
+Sending requires an existing server profile_id. An offline launch uses a
+separate owner_key; until the host/demo explicitly binds it to profile_id,
+results remain unassigned. Switching profiles does not reassign old records.
+The demo allows creation/selection of a server profile and explicit binding
+of a local owner; the main host passes this binding through configure.
 
-Отправка последовательная, только один worker. Автопопытка после завершения
-и кнопка «Повторить отправку»; без бесконечного быстрого цикла при ошибках.
-Сетевые ошибки, 409, 422 и прочие ответы видимы, payload остаётся на диске.
-Только 200/201 с подтверждённым client_run_id и server run_id считаются
-доставкой; запись помечается/перемещается в sent с квитанцией. Если ответ
-потерян или приложение перезапущено до квитанции, повтор использует тот же UUID
-и сервер возвращает прежний результат. Ошибка записи квитанции не теряет payload.
-Пакетные результаты не отправляются в один профиль без проверки привязки.
-Неизменяемость относится к payload игры. Привязка owner_key к profile_id и
-серверу хранится отдельно, а выбранный адрес и профиль фиксируются до первой
-отправки конкретного UUID. Неудачный запрос не разрешает автоматически
-переназначить его другому профилю/серверу.
+Sending is sequential with one worker only. An automatic attempt follows
+completion, plus a “Retry sending” button; errors do not cause an endless
+rapid loop. Network errors, 409, 422, and other responses are visible; the
+payload remains on disk. Only 200/201 with confirmed client_run_id and server
+run_id count as delivery; the record is marked/moved to sent with a receipt.
+If the response is lost or the application restarts before recording the
+receipt, retry uses the same UUID and the server returns the existing result.
+Receipt-write failure does not lose the payload. Batch results are not sent
+to a single profile without checking their bindings.
+Immutability applies to the game payload. The owner_key binding to profile_id
+and server is stored separately; the selected address and profile are fixed
+before the first send of a particular UUID. A failed request does not allow
+automatic reassignment to another profile/server.
 
-## Go API, SQLite и совместимость
+## Go API, SQLite, and compatibility
 
-Старые /api/v1/profiles и /sessions и их схемы/ответы сохраняются.
-Новые endpoints используют существующие профили:
+Existing /api/v1/profiles and /sessions and their schemas/responses are preserved.
+New endpoints use existing profiles:
 
-| Метод и путь | Результат |
+| Method and path | Result |
 | --- | --- |
-| POST /api/v1/profiles/{id}/game-runs | 201 создание; 200 идентичный повтор; 409 изменённый payload с тем же UUID |
-| GET /api/v1/profiles/{id}/game-runs | история, limit/offset и необязательный game_id |
-| GET /api/v1/game-runs/{id} | исходный результат и серверные метаданные |
-| GET /api/v1/game-runs/{id}/report | рассчитанные показатели, сравнение, ограничения, актуальное объяснение |
-| GET /api/v1/game-runs/{id}/report.html | экранированный HTML для просмотра/печати |
-| POST /api/v1/game-runs/{id}/explanation | ready/unavailable/invalid, как в существующем API |
+| POST /api/v1/profiles/{id}/game-runs | 201 creation; 200 identical retry; 409 changed payload with the same UUID |
+| GET /api/v1/profiles/{id}/game-runs | History, limit/offset, optional game_id |
+| GET /api/v1/game-runs/{id} | Raw result and server metadata |
+| GET /api/v1/game-runs/{id}/report | Calculated measures, comparison, limitations, current explanation |
+| GET /api/v1/game-runs/{id}/report.html | Escaped HTML for viewing/printing |
+| POST /api/v1/game-runs/{id}/explanation | ready/unavailable/invalid, as in the existing API |
 
-Пагинация/ошибки/loopback/no-auth ограничения такие же, как в текущем API.
-Схемы initial/config/events — discriminated union по game_id; неизвестные
-поля/версии/сложности отклоняются. Нулевые корректные значения не равны
-отсутствующим/null. Расчёты и проверка выполняются до атомарного сохранения.
-Канонизация эквивалентных payload и уникальность (profile_id,client_run_id)
-обеспечивают конкурентные повторы без дублей. UUID относится к одному game_id.
+Pagination/error/loopback/no-auth constraints match the current API.
+The initial/config/events schemas are a discriminated union by game_id;
+unknown fields/versions/difficulties are rejected. Valid zero values differ
+from missing/null values. Calculations and validation precede atomic saving.
+Canonicalizing equivalent payloads and uniqueness of (profile_id,client_run_id)
+ensure concurrent retries without duplicates. A UUID belongs to one game_id.
 
-SQLite version=2: новые game_runs и game_run_explanations с индексами профиля,
-времени и сопоставимости. Миграция 1→2 транзакционна и не меняет существующие
-данные. Пересчёт отчёта происходит из исходного журнала, calculation_version=v1.
-Чувствительные данные и тестовые базы в Git не попадают. Откат требует
-резервной копии, старый сервер корректно откажется открывать новую схему.
+SQLite version=2: new game_runs and game_run_explanations with profile, time,
+and comparability indexes. Migration 1→2 is transactional and does not change
+existing data. Reports are recalculated from the raw log, calculation_version=v1.
+Sensitive data and test databases stay out of Git. Rollback requires a backup;
+the old server correctly refuses to open the new schema.
 
-## Сопоставление и отчёт
+## Comparison and report
 
-Каждая попытка отображается в истории, включая aborted/failed с причиной.
-Baseline — ближайшее строго более раннее сопоставимое прохождение той же игры,
-версии правил, канонической конфигурации сложности и source у того же профиля.
-Для fifteen/pairs/math сравниваются completed. Для chimp нормальными результатами
-являются и победа, и достижение лимита ошибок: completed/target_reached
-сравнивается с таким же исходом, failed/mistake_limit — с failed/mistake_limit.
-Поэтому типичный проигрыш chimp тоже получает динамику максимального успешно
-пройденного размера и других доступных показателей. Aborted не участвует в
-baseline и сравнении; собственные показатели и ограничения остаются видны.
+Every attempt appears in history, including aborted/failed with a reason.
+Baseline is the nearest strictly earlier comparable run for the same profile,
+game, rules version, canonical difficulty configuration, and source.
+For fifteen/pairs/math, completed runs are compared. For chimp, both winning
+and reaching the mistake limit are normal outcomes: completed/target_reached
+is compared with the same outcome, failed/mistake_limit with failed/mistake_limit.
+Thus a typical chimp loss also receives trends for maximum successfully
+completed size and other available measures. Aborted runs do not participate
+in baseline selection or comparison; their own measures and limitations remain visible.
 
-Версии и конфигурации явно показаны; одинаковое название сложности при разных
-настройках не означает сопоставимость. При отсутствии baseline — null.
-Показатели времени — в мс, разности точности — в процентных пунктах.
-Разности ходов/ошибок/результатов — в тех же единицах. Не создавать общий
-показатель между разными играми. Синтетический источник заметен на экране и в отчёте.
+Versions and configurations are shown explicitly; the same difficulty name
+with different settings does not imply comparability. Without a baseline,
+return null. Time measures are in ms, accuracy differences in percentage points.
+Move/error/score differences use their original units. Do not create an overall
+measure across different games. Synthetic source is prominent on screen and
+in the report.
 
-Qwen получает только серверные факты новой игры, сравнение и ограничения,
-без имени профиля. Старый Explain остаётся совместимым; общий механизм
-выбора fact_ids, запрет свободного текста, таймаут и единый слот генерации
-распространяются на оба типа отчётов. Обязательные ограничения добавляет Go.
-Fingerprint включает правила, исходный run, расчёты и выбранную baseline;
-при backfill устаревшее объяснение не публикуется. Сбой модели не меняет данные
-и не стирает ранее готовое актуальное объяснение.
+Qwen receives only server facts for the new game, comparison, and limitations,
+without the profile name. Old Explain remains compatible; the shared fact_ids
+selection mechanism, free-text prohibition, timeout, and single generation
+slot apply to both report types. Go adds mandatory limitations. The fingerprint
+includes rules, raw run, calculations, and selected baseline; stale explanations
+are not published after backfill. Model failure neither changes data nor
+erases an already-ready current explanation.
 
-## Проверка и критерии завершения
+## Verification and completion criteria
 
-1. Godot headless: логика каждой игры, границы, завершение/перезапуск, запрет
-   повторного завершения, сигналы host, новая раскладка при новых стартах.
-   Генераторы проверяются также с фиксированным seed в тестах, без влияния
-   на обычную случайность; математический пул и уникальность задач проверяются
-   независимо от генератора. Пятнашки — разрешимость и легальные ходы;
-   пары — preview/lock, совпадения и ошибки; math — единственный правильный
-   ответ и дедлайны; chimp — скрытие, порядок, рост раундов и лимит ошибок.
-2. Godot с рендерингом: пройти все четыре сцены через UI, проверить инструкции,
-   управление, карточки/числа, результат и размер 960×540. Снимки экрана и
-   воспроизводимые сценарии не подменяются одним успешным парсингом.
-3. Проверка из временного минимального проекта без root main-menu/Autoload.
-4. Offline/outbox: нет сервера, нет profile_id, перезапуск и восстановление
-   очереди, потерянный ответ, повтор, отказ диска/повреждённая запись,
-   смена профиля, отклонённый сервером результат. Данные не теряются молча.
-5. Go: replay валидных/поддельных журналов всех игр, нули/обязательные поля,
-   дедлайны, конфигурации, идемпотентность/конкурентность, миграция со старой
-   базы с профилем/сессией/объяснением, история и оба формата отчёта.
-6. Совместимость: весь существующий набор Go-тестов остаётся зелёным.
-   Новый лимит тела не меняет старые endpoints. HTML экранируется.
-7. Полный сценарий Godot → API → SQLite → история → отчёт для каждой игры,
-   с отсутствующей Ollama, затем хотя бы одно реальное объяснение новой игры
-   от установленной qwen3:8b. Проверить выбор разрешённых фактов для всех игр
-   mock-тестами, таймаут, отмену и конкуренцию старого/нового endpoint.
-8. gofmt, go vet, go test, Windows-сборка без C-компилятора; Godot import и
-   headless-тесты без ошибок. Обновить OpenAPI, README, примеры и инструкции
-   копирования addon, запуска демо, обработки сигналов и резервных копий.
-9. Независимый обзор и итоговый документ доказательств. Не считать задачу
-   завершённой, пока каждую игру не проверили в установленном Godot.
+1. Godot headless: every game's logic, boundaries, completion/restart, prevention
+   of duplicate completion, host signals, and new layouts on new starts.
+   Generators are also tested with a fixed seed without affecting normal
+   randomness; the math pool and task uniqueness are checked independently
+   of the generator. Fifteen Puzzle: solvability and legal moves; pairs:
+   preview/lock, matches, and errors; math: exactly one correct answer and
+   deadlines; chimp: hiding, order, round growth, and mistake limit.
+2. Godot with rendering: complete all four scenes through the UI, checking
+   instructions, controls, cards/numbers, results, and 960×540 layout. Screenshots
+   and reproducible scenarios are not replaced by successful parsing alone.
+3. Test from a temporary minimal project without the root main-menu/Autoload.
+4. Offline/outbox: no server, no profile_id, restart and queue recovery, lost
+   response, retry, disk failure/corrupted record, profile switching, and
+   server-rejected result. Data must not be lost silently.
+5. Go: replay valid/forged logs for every game, zero/required fields, deadlines,
+   configurations, idempotency/concurrency, migration from an old database
+   with a profile/session/explanation, history, and both report formats.
+6. Compatibility: the entire existing Go test suite remains green. The new
+   body limit does not change old endpoints. HTML is escaped.
+7. Complete Godot → API → SQLite → history → report workflow for each game,
+   with Ollama absent, then at least one real new-game explanation from
+   installed qwen3:8b. Mock tests check allowed-fact selection for every game,
+   timeout, cancellation, and contention between old/new endpoints.
+8. gofmt, go vet, go test, Windows build without a C compiler; Godot import
+   and headless tests without errors. Update OpenAPI, README, examples, and
+   instructions for copying the addon, launching the demo, handling signals,
+   and backups.
+9. Independent review and final evidence document. Do not consider the task
+   complete until every game has been tested in the installed Godot.
 
-## Что решает исполнитель
+## Implementer decisions
 
-Точные имена внутренних файлов/типов и полей событий, текст/компоновку UI,
-оформление карточек, SQL-структуру в описанной модели, реализацию генераторов
-и тестового ввода, обработку системных файловых ошибок и техническую форму
-квитанции. Эти решения сохраняют правила и проверяемость данного документа.
+Exact internal file/type and event-field names, UI text/layout, card visuals,
+SQL structure within the described model, generator and test-input implementation,
+OS file-error handling, and the receipt's technical format. These decisions
+must preserve this document's rules and verifiability.

@@ -14,6 +14,7 @@ var selected_profile: String = ""
 var _local_owner: String = "demo-local"
 
 func _ready() -> void:
+	TranslationServer.set_locale("en")
 	theme = preload("res://addons/zuma_minigames/theme.tres")
 	add_child(preload("res://addons/zuma_minigames/ui/orbit_background.gd").new())
 	var margin := MarginContainer.new()
@@ -27,7 +28,7 @@ func _ready() -> void:
 	var header := HBoxContainer.new()
 	column.add_child(header)
 	var brand := Label.new()
-	brand.text = "ZUMA / МИНИ-ИГРЫ"
+	brand.text = "ZUMA / MINI-GAMES"
 	brand.add_theme_font_size_override("font_size", 24)
 	header.add_child(brand)
 	var spacer := Control.new()
@@ -43,16 +44,16 @@ func _ready() -> void:
 	content.add_theme_constant_override("separation", 14)
 	menu.add_child(content)
 	var intro := Label.new()
-	intro.text = "Выберите задание\nМожно играть без подключения к серверу."
+	intro.text = "Choose a task\nYou can play without a server connection."
 	intro.add_theme_font_size_override("font_size", 23)
 	content.add_child(intro)
 	var level_row := HBoxContainer.new()
 	content.add_child(level_row)
 	var level_label := Label.new()
-	level_label.text = "Сложность: "
+	level_label.text = "Difficulty: "
 	level_row.add_child(level_label)
 	difficulty_picker = OptionButton.new()
-	for title in ["Легко", "Обычно", "Сложно"]:
+	for title in ["Easy", "Normal", "Hard"]:
 		difficulty_picker.add_item(title)
 	difficulty_picker.select(1)
 	level_row.add_child(difficulty_picker)
@@ -61,7 +62,7 @@ func _ready() -> void:
 	games.add_theme_constant_override("h_separation", 12)
 	games.add_theme_constant_override("v_separation", 12)
 	content.add_child(games)
-	for item in [["fifteen", "Пятнашки\nСоберите поле 4×4"], ["pairs", "Найди пару\nЗапомните карточки"], ["math", "Математика\nОтветьте быстрее таймера"], ["chimp", "Запомни числа\nВосстановите порядок"]]:
+	for item in [["fifteen", "Fifteen Puzzle\nSolve the 4×4 board"], ["pairs", "Find the Pair\nMemorize the cards"], ["math", "Speed Math\nBeat the timer"], ["chimp", "Remember the Numbers\nRecall the order"]]:
 		var game_button := Button.new()
 		game_button.name = "Game_" + item[0]
 		game_button.text = item[1]
@@ -72,27 +73,27 @@ func _ready() -> void:
 	content.add_child(profile_row)
 	profile_picker = OptionButton.new()
 	profile_picker.custom_minimum_size.x = 230
-	profile_picker.add_item("Без серверного профиля")
+	profile_picker.add_item("No server profile")
 	profile_picker.item_selected.connect(_select_profile)
 	profile_row.add_child(profile_picker)
 	profile_name = LineEdit.new()
-	profile_name.placeholder_text = "Имя нового профиля"
+	profile_name.placeholder_text = "New profile name"
 	profile_name.max_length = 100
 	profile_name.custom_minimum_size.x = 210
 	profile_row.add_child(profile_name)
-	_button(profile_row, "Создать профиль", _create_profile)
-	_button(profile_row, "Обновить", _load_profiles)
+	_button(profile_row, "Create profile", _create_profile)
+	_button(profile_row, "Refresh", _load_profiles)
 	var delivery_row := HBoxContainer.new()
 	content.add_child(delivery_row)
-	_button(delivery_row, "Привязать локальные результаты", _bind_local)
-	_button(delivery_row, "Повторить отправку", func(): module.retry_pending())
+	_button(delivery_row, "Link local results", _bind_local)
+	_button(delivery_row, "Retry upload", func(): module.retry_pending())
 	status = Label.new()
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 15)
-	status.text = "Выберите профиль для новых игр. Ранее локальные результаты привязываются отдельной кнопкой."
+	status.text = "Select a profile for new games. Earlier local results are linked using a separate button."
 	content.add_child(status)
 	var note := Label.new()
-	note.text = "Показатели заданий не являются медицинским диагнозом."
+	note.text = "Task results are not a medical diagnosis."
 	note.add_theme_font_size_override("font_size", 14)
 	content.add_child(note)
 	module = Module.new()
@@ -111,11 +112,11 @@ func _launch(game: String) -> void:
 	var displayed: String = "" if profile_picker.selected <= 0 else profiles[profile_picker.selected - 1].id
 	if displayed != module.options.profile_id:
 		_restore_selection()
-		status.text = "Выбранный профиль не применён. Повторите выбор перед игрой."
+		status.text = "The selected profile was not applied. Select it again before playing."
 		return
 	var error: Error = module.start_game(game, ["easy", "normal", "hard"][difficulty_picker.selected])
 	if error != OK:
-		status.text = "Не удалось открыть игру: " + str(error)
+		status.text = "Could not open the game: " + str(error)
 		return
 	menu.visible = false
 	module.visible = true
@@ -128,15 +129,15 @@ func _show_menu() -> void:
 func _load_profiles() -> void:
 	var response: Dictionary = await module.transport.request(module.options.base_url, "/api/v1/profiles?limit=100", HTTPClient.METHOD_GET, null, 3.0)
 	if not response.ok:
-		status.text = "Сервер недоступен. Игры работают, результаты сохраняются локально."
+		status.text = "Server unavailable. Games still work and results are saved locally."
 		return
 	profiles = response.data.get("items", [])
 	profile_picker.clear()
-	profile_picker.add_item("Без серверного профиля")
+	profile_picker.add_item("No server profile")
 	for profile in profiles:
 		profile_picker.add_item(profile.display_name)
 	_restore_selection()
-	status.text = "Сервер доступен. Выберите профиль для новых игр."
+	status.text = "Server available. Select a profile for new games."
 
 func _select_profile(index: int) -> void:
 	var profile: String = "" if index == 0 else profiles[index - 1].id
@@ -146,18 +147,18 @@ func _select_profile(index: int) -> void:
 	var error: Error = module.configure({"owner_key": owner, "profile_id": profile})
 	if error != OK:
 		_restore_selection()
-		status.text = "Не удалось сменить профиль (код %d). Дождитесь отправки или устраните ошибку записи." % error
+		status.text = "Could not switch profiles (code %d). Wait for the upload or resolve the write error." % error
 		return
 	selected_profile = profile
-	status.text = "Профиль выбран для новых игр. Старые записи не переназначены."
+	status.text = "Profile selected for new games. Existing records were not reassigned."
 
 func _create_profile() -> void:
 	if profile_name.text.strip_edges().is_empty():
-		status.text = "Введите имя профиля."
+		status.text = "Enter a profile name."
 		return
 	var response: Dictionary = await module.transport.request(module.options.base_url, "/api/v1/profiles", HTTPClient.METHOD_POST, {"display_name": profile_name.text.strip_edges()}, 3.0)
 	if not response.ok:
-		status.text = "Профиль не создан: " + str(response.get("error", "ошибка"))
+		status.text = "Profile not created: " + str(response.get("error", "error"))
 		return
 	var created_id: String = response.data.id
 	var error: Error = module.configure({"owner_key": "profile:" + created_id, "profile_id": created_id})
@@ -166,17 +167,17 @@ func _create_profile() -> void:
 	else:
 		_restore_selection()
 	await _load_profiles()
-	status.text = "Профиль создан и выбран." if error == OK else "Профиль создан, но не выбран (код %d). Действующим остался прежний профиль." % error
+	status.text = "Profile created and selected." if error == OK else "Profile created but not selected (code %d). The previous profile remains active." % error
 
 func _bind_local() -> void:
 	if selected_profile.is_empty():
-		status.text = "Сначала выберите серверный профиль."
+		status.text = "Select a server profile first."
 		return
 	var error: Error = module.bind_owner(_local_owner, selected_profile)
 	if error != OK:
-		status.text = "Локальный владелец уже связан с другим профилем либо очередь недоступна (код %d)." % error
+		status.text = "The local owner is already linked to another profile or the queue is unavailable (code %d)." % error
 		return
-	status.text = "Локальные записи явно привязаны к выбранному профилю."
+	status.text = "Local records were explicitly linked to the selected profile."
 	_prepare_local_owner() # Future no-profile runs must never inherit this binding.
 	module.retry_pending()
 
@@ -189,7 +190,7 @@ func _restore_selection() -> void:
 		if profiles[i].id == selected_profile:
 			profile_picker.select(i + 1)
 			return
-	profiles.append({"id": selected_profile, "display_name": "Текущий профиль " + selected_profile.left(8)})
+	profiles.append({"id": selected_profile, "display_name": "Current profile " + selected_profile.left(8)})
 	profile_picker.add_item(profiles.back().display_name)
 	profile_picker.select(profiles.size())
 
@@ -202,7 +203,7 @@ func _prepare_local_owner() -> void:
 		_local_owner = "demo-local:" + Rules.uuid()
 	var error: Error = module.outbox._write(path, {"owner_key": _local_owner}, true)
 	if error != OK and status != null:
-		status.text = "Не удалось сохранить локального владельца. Результаты не будут переназначены."
+		status.text = "Could not save the local owner. Results will not be reassigned."
 
 func _delivery(_id: String, state: String, message: String) -> void:
 	status.text = message.left(250)
@@ -210,7 +211,7 @@ func _delivery(_id: String, state: String, message: String) -> void:
 	_refresh_count()
 
 func _refresh_count() -> void:
-	queue_label.text = "Ожидают отправки: %d" % module.pending_count()
+	queue_label.text = "Pending uploads: %d" % module.pending_count()
 
 func _button(parent: Node, text: String, callback: Callable) -> void:
 	var button := Button.new()

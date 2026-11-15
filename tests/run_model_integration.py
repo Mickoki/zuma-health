@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timezone
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import subprocess
@@ -77,6 +78,10 @@ def run(server, ollama, model):
             explanation = outcome.get("explanation") or {}
             if outcome.get("status") != "ready" or explanation.get("model") != model:
                 raise RuntimeError("Model explanation was not accepted: " + str(outcome.get("status")))
+            for category in ("observations", "comparisons", "limitations"):
+                for fact in explanation.get(category, []):
+                    if re.search(r"[\u0400-\u052f]", fact.get("text", "")):
+                        raise RuntimeError("The model explanation contains untranslated text")
             limitations = {fact["id"] for fact in explanation.get("limitations", [])}
             if not {"not_medical", "survey_timing", "synthetic", "no_baseline"}.issubset(limitations):
                 raise RuntimeError("Required limitations are missing")

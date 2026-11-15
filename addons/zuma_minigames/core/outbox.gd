@@ -29,7 +29,7 @@ func _init(storage_dir: String = "user://zuma_minigames") -> void:
 	_recover_sent()
 	pending() # Detect/quarantine damaged records at startup, before reporting readiness.
 	if warnings.is_empty() and not DirAccess.get_files_at(root_dir.path_join("corrupt")).is_empty():
-		warnings.append("В каталоге corrupt есть записи для восстановления; они не удалены")
+		warnings.append("The corrupt folder contains records to recover; they have not been deleted")
 
 func read_dict(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -67,7 +67,7 @@ func _write(path: String, data: Dictionary, replace: bool = false) -> Error:
 func _quarantine(path: String) -> void:
 	var destination: String = root_dir.path_join("corrupt").path_join(path.get_file() + ".%d.%d.bad" % [Time.get_ticks_usec(), warnings.size()])
 	var result: Error = DirAccess.rename_absolute(path, destination)
-	warnings.append("Повреждённая/незавершённая запись сохранена: %s (код %d)" % [path, result])
+	warnings.append("Damaged/incomplete record preserved: %s (code %d)" % [path, result])
 
 func _valid_record(record: Dictionary, id: String) -> bool:
 	return Wire.valid_uuid(id) and record.get("owner_key", "") is String and not str(record.get("owner_key", "")).is_empty() and record.get("payload") is Dictionary and record.payload.get("client_run_id") == id and record.payload.get("game_id") in ["fifteen", "pairs", "math", "chimp"]
@@ -91,7 +91,7 @@ func _recover_sent() -> void:
 		if archive.get("record") is Dictionary and _valid_record(archive.record, id):
 			var restored: Error = _write(root_dir.path_join("pending").path_join(name), archive.record)
 			if restored != OK:
-				warnings.append("Не удалось вернуть неподтверждённую запись в очередь: " + id)
+				warnings.append("Could not restore an unconfirmed record to the queue: " + id)
 
 func _recover() -> void:
 	for sub in ["pending", "routes", "sent", ""]:
@@ -111,7 +111,7 @@ func _recover() -> void:
 				valid = _valid_archive(data, target.get_file().trim_suffix(".json"))
 			if valid and not FileAccess.file_exists(target):
 				if DirAccess.rename_absolute(path, target) != OK:
-					warnings.append("Не удалось восстановить " + path)
+					warnings.append("Could not recover " + path)
 			else:
 				_quarantine(path)
 	var binding_path: String = root_dir.path_join("bindings.json")

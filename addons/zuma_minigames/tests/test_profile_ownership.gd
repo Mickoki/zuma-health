@@ -20,7 +20,7 @@ func run_test() -> void:
 	var demo = Demo.new() # Do not start its normal ready/network flow.
 	demo.module = module
 	demo.profile_picker = OptionButton.new()
-	demo.profile_picker.add_item("Без профиля")
+	demo.profile_picker.add_item("No profile")
 	demo.profile_picker.add_item("A")
 	demo.profile_picker.add_item("B")
 	demo.profiles = [{"id": "a".repeat(32), "display_name": "A"}, {"id": "b".repeat(32), "display_name": "B"}]

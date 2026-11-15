@@ -1,149 +1,159 @@
 # Zuma
 
-Текущий редизайн основан на макетах Google Stitch: космический фон, единая тема,
-боковая навигация, SVG-иконки и A4-отчёты. Опрос, история, динамика и справка
-сохранены. Клавиши в играх: R — новая попытка, Esc — назад, 1–4 — ответ в
-математике; потеря фокуса завершает попытку и открывает оверлей.
-[Проверка редизайна](docs/stitch-redesign-verification.md).
+The interface, reports, model-selected fact text, source comments, test fixtures,
+and project documentation are in English. Start the updated client **and**
+server to use the English version. Existing profile names and saved user data
+remain unchanged. Cached explanations from earlier versions are regenerated
+because their fact wording is included in cache validation.
+[English localization checks](docs/english-localization-verification.md).
 
-Прототип для задачи NASA Space Apps Create Health Monitoring Software for Astronauts on Space Missions:
+The current redesign is based on Google Stitch mockups: a space background, shared theme,
+sidebar navigation, SVG icons, and A4 reports. The survey, History, Trends, and Help
+are preserved. Game shortcuts: R — new attempt, Esc — back, 1–4 — answer in
+Speed Math; losing focus ends the attempt and opens an overlay.
+[Redesign verification](docs/stitch-redesign-verification.md).
+
+Prototype for the NASA Space Apps challenge Create Health Monitoring Software for Astronauts on Space Missions:
 https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/
 
-Сценарий: сохранённый опрос → одна из четырёх мини-игр → сохранение прохождения с копией опроса → история и отчёт. Локальная модель необязательна. Интеграция часов исключена.
+Workflow: saved survey → one of four minigames → save a run with a survey snapshot → history and report. The local model is optional. Watch integration is excluded.
 
-## Сервер
+## Server
 
-Go + SQLite, HTTP API для Godot desktop, JSON/HTML-отчёты, Qwen3 8B через Ollama.
-Расчёты выполняет Go. Основной сценарий работает без модели.
+Go + SQLite, HTTP API for Godot desktop, JSON/HTML reports, Qwen3 8B through Ollama.
+Go performs the calculations. The main workflow works without the model.
 
 ```powershell
 cd server
 go run ./cmd/zuma
 ```
 
-Нужен Go 1.26+. API по умолчанию http://127.0.0.1:8080.
-[Запуск и ограничения](server/README.md), [OpenAPI](server/docs/openapi.yaml),
-[Godot-пример](server/examples/client.gd), [план команды](PLAN.md).
+Requires Go 1.26+. The default API address is http://127.0.0.1:8080.
+[Startup and limitations](server/README.md), [OpenAPI](server/docs/openapi.yaml),
+[Godot example](server/examples/client.gd), [team plan](PLAN.md).
 
-## Клиент Godot
+## Godot client
 
-Откройте `project.godot` в Godot 4 и запустите проект (F5). Отдельно запустите
-сервер по инструкции выше. На экране обзора можно создать профиль или выбрать
-существующий; кнопка обновления повторно подключается к серверу. Опрос сохраняет
-черновик отдельно для каждого профиля в `user://survey_drafts.json` на устройстве.
-Для выбранного профиля обзор показывает последнюю сохранённую проверку и ссылку
-на её отчёт; демонстрационные данные обозначены отдельно.
-Все поля нового опроса требуется заполнить явно; ноль также допустим.
-При переходах между экранами несохранённый ввод остаётся в памяти до закрытия
-приложения. Чтобы сохранить его между запусками, нажмите «Сохранить черновик».
-История показывает сессии страницами по 10 записей и открывает отчёт или версию
-для печати; в списке видны ответы опроса и результат задания на память. В отчёте
-отображаются изменения относительно ближайшей предыдущей сопоставимой сессии,
-если она есть, и можно перейти к её отчёту.
-Раздел «Динамика» показывает сон, усталость, стресс, настроение, результат памяти
-или медиану реакции по последним 100 сессиям профиля, а также показатели опроса
-из последних 100 игровых прохождений. Игровые данные группируются по игре,
-сложности, версии правил и источнику. Время точки относится к прохождению игры,
-а не к заполнению опроса; один и тот же сохранённый опрос может повторяться.
-Прежние показатели памяти и реакции доступны только для прежнего протокола,
-для новых игр они не подменяются. Память и реакция берутся из
-расчётных отчётов Go-сервера. Источник и протокол выбираются отдельно; расстояние
-между точками показывает порядок проверок, а не время между ними. Пропуски не
-соединяются линией. Точные значения и даты можно раскрыть списком. Шкалы не являются
-медицинскими нормами; шкала реакции автоматически подстраивается под значения.
-В отчёте можно отдельно запросить объяснение модели; при её отсутствии числовые
-данные остаются доступны.
-Раздел «Справка» объясняет опрос и показатели и содержит ссылки на материалы NASA.
+Open `project.godot` in Godot 4 and run the project (F5). Start the server
+separately using the instructions above. On Overview, create a profile or select
+an existing one; the refresh button reconnects to the server. The survey saves
+a separate draft for each profile in `user://survey_drafts.json` on the device.
+For the selected profile, Overview shows the latest saved check and a link
+to its report; demonstration data is labeled separately.
+Every field in a new survey must be filled in explicitly; zero is also valid.
+Unsaved input stays in memory when switching screens until the application closes.
+To keep it between launches, click “Save draft”.
+History shows sessions in pages of 10 records and opens a report or print version;
+the list includes survey answers and the memory task result. Reports show changes
+relative to the nearest preceding comparable session, if available, and link to
+that session's report.
+Trends shows sleep, fatigue, stress, mood, memory score, or median reaction time
+from the profile's latest 100 sessions, as well as survey values from the latest
+100 game runs. Game data is grouped by game, difficulty, rules version, and source.
+Each point's time refers to the game run rather than survey completion; the same
+saved survey can appear repeatedly. Legacy memory and reaction measures are
+available only for the legacy protocol and are not substituted for the new games.
+Memory and reaction values come from reports calculated by the Go server.
+Source and protocol are selected separately; spacing between points represents
+check order rather than elapsed time. Gaps are not connected by lines.
+Exact values and dates can be expanded as a list. The scales are not medical
+norms; the reaction scale adjusts automatically to the values.
+A model explanation can be requested separately in the report; numerical data
+remains available when the model is absent.
+Help explains the survey and measures and links to NASA materials.
 
-### Мини-игры
+### Minigames
 
-Создайте или выберите профиль, заполните и сохраните опрос. В разделе «Игры» выберите сложность и одну из четырёх игр: пятнашки,
-поиск пар, математика или запоминание чисел. Игра сохраняет отдельное прохождение
-в локальную очередь и пытается отправить его серверу; неотправленные результаты
-можно отправить повторно. После отправки постраничная история прохождений и их HTML-отчёты
-доступны в этом же разделе; там же можно запросить объяснение модели. Профиль нужно заранее создать или выбрать при
-доступном сервере. К каждому новому прохождению прикрепляется копия последнего сохранённого опроса.
-Если самочувствие изменилось, обновите и сохраните опрос до следующей игры: время
-заполнения не записывается. Четыре игры используют собственный протокол, а не
-прежний протокол реакции и памяти. История прежних полных проверок остаётся
-доступной отдельно. [Правила, очередь и ограничения](addons/zuma_minigames/README.md),
-[API и миграция базы](server/docs/minigames.md).
+Create or select a profile, then complete and save the survey. In Games, select
+a difficulty and one of four games: Fifteen Puzzle, Find the Pair, Speed Math,
+or Remember the Numbers. Each game saves a separate run to a local queue and
+tries to send it to the server; unsent results can be retried. Once submitted,
+paginated run history and HTML reports are available in the same section,
+where a model explanation can also be requested. The profile must first be
+created or selected while the server is available. A snapshot of the latest
+saved survey is attached to every new run.
+If your wellbeing changes, update and save the survey before the next game:
+the completion time is not recorded. The four games use their own protocol
+rather than the legacy reaction and memory protocol. History for legacy full
+checks remains available separately. [Rules, queue, and limitations](addons/zuma_minigames/README.md),
+[API and database migration](server/docs/minigames.md).
 
-При обновлении остановите старый сервер и сделайте резервную копию каталога базы:
-миграция схемы необратима для старого бинарника. Данные очереди и база не
-зашифрованы. Если запись на диск не удалась, результат удерживается только в
-памяти работающего приложения; устраните ошибку и повторите отправку до закрытия.
+When updating, stop the old server and back up the database directory:
+the schema migration cannot be reversed for the old binary. Queue data and
+the database are not encrypted. If writing to disk fails, the result stays
+only in the running application's memory; fix the error and retry sending
+before closing the application.
 
-Для демонстрации прежних отчётов при запущенном сервере можно выполнить
-`python server\examples\demo_data.py`: создаётся отдельный профиль с явно
-обозначенными синтетическими данными.
+To demonstrate legacy reports while the server is running, run
+`python server\examples\demo_data.py`: this creates a separate profile with
+explicitly labeled synthetic data.
 
-Для проверки клиента с локальным тестовым API (без реальной базы) укажите путь к
-консольной версии Godot 4.7:
+To test the client with a local test API (without a real database), supply
+the path to the Godot 4.7 console executable:
 
 ```powershell
 python tests/run_client_integration.py "C:\path\to\Godot_v4.7-stable_win64_console.exe"
 ```
 
-## Экспорт Windows
+## Windows export
 
-Если уже собраны `builds/windows/Zuma-integrated.exe` и
-`builds/windows/zuma-server.exe`, для локального запуска откройте PowerShell в
-корне проекта, выполните `cd server`, затем `..\builds\windows\zuma-server.exe`
-и оставьте окно сервера открытым. Затем в другом окне PowerShell из корня проекта
-запустите `./builds/windows/Zuma-integrated.exe` или откройте этот файл в
-проводнике. При таком запуске база находится в
-`server/data/`. Сборки исключены из Git и при передаче исходников создаются заново.
-Для сборки сервера из папки `server` выполните
-`go build -o ../builds/windows/zuma-server.exe ./cmd/zuma` после создания папки
-`builds/windows`.
+If `builds/windows/Zuma-integrated.exe` and `builds/windows/zuma-server.exe`
+have already been built, open PowerShell in the project root for a local run,
+execute `cd server`, then `..\builds\windows\zuma-server.exe`, and leave the
+server window open. In another PowerShell window at the project root, run
+`./builds/windows/Zuma-integrated.exe`, or open that file in File Explorer.
+With this launch method, the database is in `server/data/`. Builds are excluded
+from Git and must be rebuilt when sharing the source.
+To build the server, create `builds/windows`, then run
+`go build -o ../builds/windows/zuma-server.exe ./cmd/zuma` from `server`.
 
-Откройте проект в Godot версии 4.7 и установите шаблоны той же версии через
-**Editor → Manage Export Templates** (Windows x86-64). Создайте папку
-`builds/windows`, затем выберите **Project → Export → Windows Desktop → Export
-Project**. Профиль использует стандартные установленные шаблоны; папка сборки
-исключена из Git. Для экспорта из PowerShell с консольной версией Godot:
+Open the project in Godot 4.7 and install matching export templates through
+**Editor → Manage Export Templates** (Windows x86-64). Create the
+`builds/windows` folder, then choose **Project → Export → Windows Desktop → Export
+Project**. The preset uses standard installed templates; the build folder is
+excluded from Git. To export from PowerShell with the Godot console executable:
 
 ```powershell
 New-Item -ItemType Directory -Force builds/windows | Out-Null
 & 'C:\path\to\Godot_v4.7-stable_win64_console.exe' --headless --path . --export-release 'Windows Desktop' builds/windows/Zuma-integrated.exe
 ```
 
-Экспорт содержит клиент и мини-игры; Go-сервер запускается отдельно. На некоторых компьютерах
-политика управления приложениями может блокировать запуск новой сборки.
-Проверить упаковку динамически загружаемых сцен можно без настоящих игр:
+The export contains the client and minigames; the Go server runs separately.
+Application control policies on some computers may block a new build.
+Packaging of dynamically loaded scenes can be checked without the real games:
 
 ```powershell
 python tests/export_pack_integration.py 'C:\path\to\Godot_v4.7-stable_win64_console.exe'
 ```
 
-Проверка создаёт отдельный временный проект с тестовыми сценами и удаляет его
-после завершения; файлы настоящего проекта и игры она не изменяет.
+This check creates a separate temporary project with test scenes and removes
+it afterward; it does not modify the real project or game files.
 
-Дополнительный тест с настоящим сервером создаёт отдельную временную SQLite-базу
-с синтетическими данными и запускается после сборки сервера:
+An additional test with the real server creates a separate temporary SQLite
+database with synthetic data and runs after building the server:
 
 ```powershell
 python tests/run_real_server_integration.py "C:\path\to\Godot_v4.7-stable_win64_console.exe" "C:\path\to\zuma.exe"
 ```
 
-Если Ollama запущена и `qwen3:8b` уже установлена, отдельная проверка настоящей
-модели использует только синтетический опрос и временную базу, не скачивая модель:
+If Ollama is running and `qwen3:8b` is already installed, a separate real-model
+check uses only a synthetic survey and temporary database without downloading
+the model:
 
 ```powershell
 python tests/run_model_integration.py "builds\windows\zuma-server.exe"
 ```
 
-Она проверяет статус объяснения, обязательные ограничения и повторное чтение
-отчёта. При недоступной модели проверка сообщает, что результат не подтверждён;
-основное приложение при этом продолжает работать без модели. Сценарий проверки
-можно проверить без модели командой `python tests/test_model_probe.py
-builds/windows/zuma-server.exe`: в этом случае используется только тестовая
-замена Ollama, и это не проверка настоящей модели.
+It checks the explanation status, required limitations, and report rereading.
+If the model is unavailable, the check reports that the result is unconfirmed;
+the main application continues working without the model. The test scenario
+itself can be checked without the model using `python tests/test_model_probe.py
+builds/windows/zuma-server.exe`: this uses only a test substitute for Ollama
+and does not verify the real model.
 
-Не храните реальные медицинские данные, секреты, сборки и веса модели в Git.
-Результаты заданий — описательные показатели, не диагноз.
-Англоязычный черновик описания для команды: [Space Apps submission draft](docs/space-apps-submission-en.md).
-Для собственного кода выбрана [лицензия MIT](LICENSE); согласие всех
-правообладателей подтверждено пользователем. [Сторонние компоненты](third_party/README.md)
-сохраняют собственные лицензии, которые следует учитывать при распространении.
+Do not store real medical data, secrets, builds, or model weights in Git.
+Task results are descriptive measures, not a diagnosis.
+English team description draft: [Space Apps submission draft](docs/space-apps-submission-en.md).
+The project's own code uses the [MIT license](LICENSE); the user has confirmed
+consent from all copyright holders. [Third-party components](third_party/README.md)
+retain their own licenses, which must be considered when distributing them.

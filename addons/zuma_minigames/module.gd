@@ -91,7 +91,7 @@ func retry_pending() -> void:
 		return
 	if outbox == null or outbox.error != OK:
 		if configure({}) != OK:
-			delivery_changed.emit("", "storage_error", "Каталог очереди недоступен; результаты остаются в памяти")
+			delivery_changed.emit("", "storage_error", "The queue folder is unavailable; results remain in memory")
 			return
 	var retained: Array = []
 	for record in unsaved:
@@ -108,9 +108,9 @@ func _on_finished(payload: Dictionary) -> void:
 	var stored: Error = ERR_CANT_CREATE if outbox == null else outbox.enqueue(options.owner_key, payload)
 	if stored != OK:
 		unsaved.append({"owner_key": options.owner_key, "payload": payload.duplicate(true)})
-		delivery_changed.emit(payload.client_run_id, "storage_error", "Не удалось сохранить на диск (код %d); результат остаётся в памяти" % stored)
+		delivery_changed.emit(payload.client_run_id, "storage_error", "Could not save to disk (code %d); the result remains in memory" % stored)
 	else:
-		delivery_changed.emit(payload.client_run_id, "pending", "Результат сохранён локально")
+		delivery_changed.emit(payload.client_run_id, "pending", "Result saved locally")
 	run_finished.emit(payload)
 	if options.auto_upload and stored == OK:
 		if delivery_busy:
@@ -132,23 +132,23 @@ func _drain() -> void:
 		var id: String = record.payload.client_run_id
 		var route: Dictionary = outbox.freeze_route(record)
 		if route.is_empty():
-			delivery_changed.emit(id, "unassigned", "Нет привязанного профиля или не удалось сохранить адрес доставки")
+			delivery_changed.emit(id, "unassigned", "No linked profile or the delivery address could not be saved")
 			continue
 		if unavailable_servers.has(route.base_url):
-			delivery_changed.emit(id, "pending", "Ожидает подключения к серверу")
+			delivery_changed.emit(id, "pending", "Waiting for a server connection")
 			continue
-		delivery_changed.emit(id, "sending", "Отправка…")
+		delivery_changed.emit(id, "sending", "Uploading…")
 		var response: Dictionary = await transport.request(route.base_url, "/api/v1/profiles/%s/game-runs" % route.profile_id, HTTPClient.METHOD_POST, record.payload)
 		if not response.ok or response.status not in [200, 201]:
-			delivery_changed.emit(id, "pending", "Не отправлено: " + str(response.get("error", response.status)))
+			delivery_changed.emit(id, "pending", "Not uploaded: " + str(response.get("error", response.status)))
 			if response.status == 0 or response.status >= 500:
 				unavailable_servers[route.base_url] = true # Do not let one offline server block other routes.
 			continue
 		var receipt: Dictionary = response.data
 		if receipt.get("game_id") != record.payload.game_id or outbox.mark_sent(record, receipt) != OK:
-			delivery_changed.emit(id, "pending", "Ответ или сохранение квитанции не подтверждены; повтор безопасен")
+			delivery_changed.emit(id, "pending", "Response or receipt persistence was not confirmed; retrying is safe")
 			continue
-		delivery_changed.emit(id, "sent", "Сохранено на сервере: " + str(receipt.id))
+		delivery_changed.emit(id, "sent", "Saved on the server: " + str(receipt.id))
 	delivery_busy = false
 	if _retry_after:
 		_retry_after = false

@@ -13,37 +13,37 @@ var printStyle string
 var printFunctions = template.FuncMap{
 	"deltaUnit": func(key, unit string) string {
 		if key == "accuracy_percent" {
-			return "п.п."
+			return "pp"
 		}
 		return unit
 	},
 	"gameTitle": func(id string) string {
-		return map[string]string{"fifteen": "Пятнашки", "pairs": "Найди пару", "math": "Математика на скорость", "chimp": "Запомни числа"}[id]
+		return map[string]string{"fifteen": "Fifteen Puzzle", "pairs": "Find the Pair", "math": "Speed Math", "chimp": "Remember the Numbers"}[id]
 	},
 	"sourceTitle": func(source string) string {
 		if source == "synthetic" {
-			return "Синтетические данные"
+			return "Synthetic data"
 		}
-		return "Локальное прохождение"
+		return "Local run"
 	},
 	"difficultyTitle": func(level string) string {
-		return map[string]string{"easy": "Легко", "normal": "Обычно", "hard": "Сложно"}[level]
+		return map[string]string{"easy": "Easy", "normal": "Normal", "hard": "Hard"}[level]
 	},
 	"outcomeTitle": func(reason string) string {
-		return map[string]string{"solved": "Задача решена", "questions_done": "Все примеры пройдены", "time_limit": "Время вышло", "target_reached": "Целевой уровень достигнут", "mistake_limit": "Лимит ошибок", "focus_lost": "Окно потеряло фокус", "user_exit": "Выход из игры", "host_removed": "Модуль закрыт", "recording_limit": "Достигнут предел записи"}[reason]
+		return map[string]string{"solved": "Puzzle solved", "questions_done": "All questions completed", "time_limit": "Time limit reached", "target_reached": "Target reached", "mistake_limit": "Mistake limit reached", "focus_lost": "Window lost focus", "user_exit": "Exited game", "host_removed": "Module closed", "recording_limit": "Recording limit reached"}[reason]
 	},
 	"metricTitle": func(key string) string {
 		titles := map[string]string{
-			"duration_ms": "Длительность", "moves": "Ходы", "solved": "Поле решено (1 — да)",
-			"pairs_found": "Найденные пары", "attempts": "Попытки", "errors": "Ошибки", "accuracy_percent": "Точность",
-			"active_ms": "Время поиска пар", "shown": "Показанные примеры", "correct": "Правильные ответы",
-			"incorrect": "Неправильные ответы", "skipped": "Пропуски", "manual_skips": "Ручные пропуски",
-			"timeouts": "Истечения времени", "answered": "Принятые ответы", "mean_answer_ms": "Среднее время ответа",
-			"successful_rounds": "Успешные раунды", "max_completed_count": "Максимум пройденных чисел",
-			"median_answer_ms": "Медиана времени ответа", "correct_per_minute": "Правильные ответы в минуту",
-			"rounds": "Начатые раунды", "failed_rounds": "Ошибочные раунды",
-			"mean_preview_ms":   "Среднее время просмотра до первого выбора",
-			"mean_selection_ms": "Среднее время выполнения успешного раунда после первого выбора",
+			"duration_ms": "Duration", "moves": "Moves", "solved": "Board solved (1 = yes)",
+			"pairs_found": "Pairs found", "attempts": "Attempts", "errors": "Errors", "accuracy_percent": "Accuracy",
+			"active_ms": "Pair search time", "shown": "Questions shown", "correct": "Correct answers",
+			"incorrect": "Incorrect answers", "skipped": "Skipped questions", "manual_skips": "Manual skips",
+			"timeouts": "Timeouts", "answered": "Accepted answers", "mean_answer_ms": "Mean answer time",
+			"successful_rounds": "Successful rounds", "max_completed_count": "Maximum completed number count",
+			"median_answer_ms": "Median answer time", "correct_per_minute": "Correct answers per minute",
+			"rounds": "Rounds started", "failed_rounds": "Failed rounds",
+			"mean_preview_ms":   "Mean preview time before first selection",
+			"mean_selection_ms": "Mean successful round time after first selection",
 		}
 		if title, ok := titles[key]; ok {
 			return title

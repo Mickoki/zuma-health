@@ -27,7 +27,7 @@ func find_button(node: Node, title: String) -> Button:
 	return null
 
 func find_name_input(node: Node) -> LineEdit:
-	if node is LineEdit and node.placeholder_text == "Имя участника":
+	if node is LineEdit and node.placeholder_text == "Crew member name":
 		return node
 	for child in node.get_children():
 		var found := find_name_input(child)
@@ -141,7 +141,7 @@ func run() -> void:
 	await process_frame
 	check(app.current_page == "game_result" and not app.active_run.is_empty(), "storage failure retains completed results in memory")
 	check(app.profile_picker.disabled and app.navigation_buttons.home.disabled, "storage failure protects unsaved results")
-	var retry_save := find_button(app.content, "Повторить сохранение")
+	var retry_save := find_button(app.content, "Retry save")
 	check(retry_save != null, "storage failure offers retry")
 	app.session_queue = actual_queue
 	failing_queue.queue_free()
@@ -152,7 +152,7 @@ func run() -> void:
 	check(not app.profile_picker.disabled and not app.navigation_buttons.home.disabled, "navigation restored after completed result is queued")
 	if pending.size() == 1:
 		check(pending[0].payload.survey.sleep_hours == 8 and pending[0].payload.reaction.trials[0].reaction_ms == 250, "queue contains captured results")
-	var send_button := find_button(app.content, "Отправить и открыть отчёт")
+	var send_button := find_button(app.content, "Upload and open report")
 	check(send_button != null, "completion screen offers direct report")
 	await app.request(HTTPClient.METHOD_GET, "/test/fail_next_send")
 	send_button.pressed.emit()
@@ -176,16 +176,16 @@ func run() -> void:
 	fixture().completed.emit({"protocol_version": "reaction-memory-v1", "correct": 3, "total": 4})
 	await process_frame
 	await app.request(HTTPClient.METHOD_GET, "/test/delay_next_send")
-	find_button(app.content, "Отправить и открыть отчёт").pressed.emit()
+	find_button(app.content, "Upload and open report").pressed.emit()
 	app.show_home()
 	var name_input := find_name_input(app.content)
-	name_input.text = "Новый участник"
-	check(find_button(app.content, "Отправить сохранённые проверки") != null, "pending item initially shown")
+	name_input.text = "New participant"
+	check(find_button(app.content, "Upload saved check-ins") != null, "pending item initially shown")
 	await wait_for_send()
 	check(app.current_page == "home", "late send response does not change current screen")
 	check(app.session_queue.pending(app.selected_profile.id).is_empty(), "send completes after navigation")
-	check(find_button(app.content, "Отправить сохранённые проверки") == null, "pending display updated after send")
-	check(is_instance_valid(name_input) and name_input.text == "Новый участник", "pending refresh preserves profile input")
+	check(find_button(app.content, "Upload saved check-ins") == null, "pending display updated after send")
+	check(is_instance_valid(name_input) and name_input.text == "New participant", "pending refresh preserves profile input")
 	if not failed:
 		print("GAME FLOW TEST PASSED")
 	quit(1 if failed else 0)

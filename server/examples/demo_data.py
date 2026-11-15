@@ -15,7 +15,7 @@ def post(path, data):
         return json.load(response)
 
 
-profile = post('/api/v1/profiles', {'display_name': 'Демо — участник экипажа'})
+profile = post('/api/v1/profiles', {'display_name': 'Demo — crew member'})
 examples = [
     (2, 7.5, 4, 5, 6, [310, 290, 330], 3),
     (1, 8, 3, 4, 7, [290, 280, 300], 4),

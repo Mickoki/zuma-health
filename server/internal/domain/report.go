@@ -62,10 +62,13 @@ func Calculate(s Session, baseline *Session) Report {
 	return r
 }
 
-// Fingerprint excludes cached explanation and includes baseline identity and all calculated inputs.
+// Fingerprint excludes cached explanation and includes baseline identity, calculated inputs, and current fact wording.
 func Fingerprint(r Report) string {
 	r.Explanation = nil
-	b, _ := json.Marshal(r)
+	b, _ := json.Marshal(struct {
+		Report Report `json:"report"`
+		Facts  []Fact `json:"facts"`
+	}{r, BuildFacts(r)})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }

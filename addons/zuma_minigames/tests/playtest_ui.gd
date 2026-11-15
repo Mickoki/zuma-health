@@ -53,7 +53,7 @@ func run_test() -> void:
 	create_timer(300 if OS.get_cmdline_user_args().has("walkthrough") else 90).timeout.connect(func(): push_error("UI PLAYTEST TIMEOUT"); quit(2))
 	root.size = Vector2i(960, 540)
 	root.content_scale_size = Vector2i(960, 540)
-	root.title = "Zuma — проверка четырёх мини-игр"
+	root.title = "Zuma — four-game playtest"
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var walkthrough: bool = args.size() > 1 and args[1] == "walkthrough"
 	output = args[0] if not args.is_empty() else "user://minigames_screenshots"
@@ -120,7 +120,7 @@ func run_test() -> void:
 		file.close()
 		var back: Button
 		for candidate in view.find_children("*", "Button", true, false):
-			if candidate.text == "Назад" and candidate.is_visible_in_tree():
+			if candidate.text == "Back" and candidate.is_visible_in_tree():
 				back = candidate
 		await click(back)
 		assert(demo.menu.visible)

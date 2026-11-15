@@ -38,7 +38,7 @@ func run() -> void:
 	check(app.trend_protocol.item_count == 2, "protocols shown separately")
 	check(app.trend_chart.points.size() == 3, "observed v1 sessions retained including gap")
 	check(app.trend_chart.points[0].value == 0 and app.trend_chart.points[1].value == 8 and app.trend_chart.points[2].value == null, "zero retained, gap preserved and values ordered oldest first")
-	check("Без значения: 1" in app.trend_summary.text, "missing value reported")
+	check("Missing values: 1" in app.trend_summary.text, "missing value reported")
 	check(app.trend_chart.maximum == 24, "sleep axis uses declared survey scale")
 	app.toggle_trend_values()
 	check(app.trend_values.visible and app.trend_values.get_child_count() == 3, "exact values and gaps available")
@@ -58,7 +58,7 @@ func run() -> void:
 	app.trend_metric.item_selected.emit(4)
 	await wait_for_reports()
 	check(app.trend_chart.points.size() == 3 and app.trend_chart.points[0].value == 60 and app.trend_chart.points[1].value == null and app.trend_chart.points[2].value == 75, "memory uses server reports and leaves unavailable report as gap")
-	check(app.trend_retry.visible and "Отчётов недоступно: 1" in app.trend_summary.text, "failed report can be retried")
+	check(app.trend_retry.visible and "Unavailable reports: 1" in app.trend_summary.text, "failed report can be retried")
 	app.trend_retry.pressed.emit()
 	await wait_for_reports()
 	check(app.trend_chart.points[1].value == 80 and not app.trend_retry.visible, "retry loads missing report")
@@ -66,7 +66,7 @@ func run() -> void:
 	app.trend_metric.item_selected.emit(5)
 	await wait_for_reports()
 	check(app.trend_chart.points.size() == 3 and app.trend_chart.points[0].value == 300 and app.trend_chart.points[1].value == 250 and app.trend_chart.points[2].value == null, "reaction uses server median and retains null as gap")
-	check(app.trend_chart.points[2].reason == "нет действительных попыток" and app.trend_chart.maximum == 300, "reaction gap and automatic scale are explained")
+	check(app.trend_chart.points[2].reason == "no valid trials" and app.trend_chart.maximum == 300, "reaction gap and automatic scale are explained")
 	await app.request(HTTPClient.METHOD_GET, "/test/slow_trend_reports")
 	app.show_trends()
 	for i in range(100):
@@ -82,10 +82,10 @@ func run() -> void:
 	check(not is_instance_valid(app.trend_loader) and app.trend_metric.selected == 0 and app.trend_chart.points[0].value == 0, "metric change cancels requests and ignores late responses")
 	app.select_profile(1)
 	for i in range(100):
-		if is_instance_valid(app.trend_summary) and "Нет данных" in app.trend_summary.text:
+		if is_instance_valid(app.trend_summary) and "No data" in app.trend_summary.text:
 			break
 		await create_timer(0.05).timeout
-	check("Нет данных" in app.trend_summary.text and app.trend_chart.points.is_empty(), "profile change clears previous data")
+	check("No data" in app.trend_summary.text and app.trend_chart.points.is_empty(), "profile change clears previous data")
 	await app.request(HTTPClient.METHOD_GET, "/test/delay_next_trend")
 	app.select_profile(0)
 	app.select_profile(1)

@@ -1,214 +1,215 @@
-# Zuma: единый локальный сервер
+# Zuma: a single local server
 
-Дата: 2026-11-14. Статус: утверждена пользователем 2026-11-14.
+Date: 2026-11-14. Status: approved by the user on 2026-11-14.
 
-## Назначение и границы
+## Purpose and scope
 
-Создать серверную часть Zuma для проекта NASA Space Apps по мониторингу
-состояния астронавтов. Клиент Godot передаёт самооценку и результаты заданий;
-сервер хранит историю, рассчитывает описательные показатели и формирует
-отчёт. Qwen3 8B через Ollama объясняет уже рассчитанные результаты.
+Create Zuma's backend for the NASA Space Apps astronaut health monitoring
+project. The Godot client submits self-reports and task results; the server
+stores history, calculates descriptive measures, and produces a report.
+Qwen3 8B through Ollama explains results that have already been calculated.
 
-Согласовано пользователем: Go, единый сервер, SQLite, локальная Qwen3 8B
-через Ollama; интеграция часов исключена. Остальные конкретные решения ниже
-предложены исполнителем и входят в предмет согласования этого документа.
+Agreed with the user: Go, a single server, SQLite, local Qwen3 8B through
+Ollama; watch integration is excluded. The other concrete decisions below
+were proposed by the implementer and are subject to this document's approval.
 
-Готовый результат включает код, миграции, контракт API, примеры Godot,
-инструкции запуска, автоматические тесты и проверку с установленной моделью.
-Работа над интерфейсом и мини-играми, облачное размещение, удалённый доступ,
-медицинская диагностика и обучение модели не входят в эту реализацию.
+Deliverables include code, migrations, an API contract, Godot examples,
+startup instructions, automated tests, and verification with the installed
+model. UI and minigame development, cloud hosting, remote access, medical
+diagnosis, and model training are outside this implementation's scope.
 
-Не допускаются потеря сохранённых сессий при ошибке модели, подмена отсутствующих
-данных нулями, смешивание реальных и демонстрационных результатов, публикация
-произвольного текста модели, выдуманных измерений и медицинских выводов.
+Losing saved sessions on model errors, replacing missing data with zeros,
+mixing real and demonstration results, publishing arbitrary model text,
+invented measurements, or medical conclusions are prohibited.
 
-## Рассмотренные подходы
+## Approaches considered
 
-1. Единый Go-процесс: HTTP API, расчёты, SQLite, отчёт и адаптер Ollama.
-   Минимум компонентов для локального запуска; модель остаётся внешним локальным
-   процессом. Выбран пользователем.
-2. Отдельные сервисы API и генерации: независимое масштабирование и очереди,
-   но дополнительные процессы и координация для локального прототипа.
-   Не выбран.
+1. A single Go process: HTTP API, calculations, SQLite, reports, and an Ollama
+   adapter. Minimal components for local use; the model remains a separate
+   local process. Selected by the user.
+2. Separate API and generation services: independent scaling and queues,
+   but additional processes and coordination for a local prototype.
+   Not selected.
 
-## Компоненты и запуск
+## Components and startup
 
-Код находится в `server/`, отдельный Go-модуль. Стандартный `net/http`,
-`database/sql`, SQLite через `modernc.org/sqlite`, HTML через `html/template`.
-Версии зависимостей закрепляются в go.mod/go.sum. Разделение: точка входа,
-конфигурация, HTTP-обработчики, предметные типы и расчёты, хранилище,
-Ollama-клиент, шаблон отчёта. Конкретные имена пакетов оставлены исполнителю.
+Code resides in `server/`, a separate Go module. Standard `net/http`,
+`database/sql`, SQLite through `modernc.org/sqlite`, HTML through `html/template`.
+Dependency versions are pinned in go.mod/go.sum. Separation: entry point,
+configuration, HTTP handlers, domain types and calculations, storage,
+Ollama client, report template. Exact package names are left to the implementer.
 
-По умолчанию: `127.0.0.1:8080`, база `./data/zuma.db`, Ollama
-`http://127.0.0.1:11434`, модель `qwen3:8b`. Конфигурация через переменные
-окружения с документированными значениями и проверкой при запуске.
-Сервер рассчитан на доверенный локальный desktop-клиент без авторизации.
-Привязка к нелокальному интерфейсу запрещена в этой версии; CORS по умолчанию
-не разрешён, поэтому браузерный клиент потребует отдельного решения.
-Профили разделяют историю, но не служат границей безопасности между
-пользователями ОС. Любой локальный процесс с доступом к API может читать данные.
+Defaults: `127.0.0.1:8080`, database `./data/zuma.db`, Ollama
+`http://127.0.0.1:11434`, model `qwen3:8b`. Configuration uses environment
+variables with documented values and validation at startup.
+The server is designed for a trusted local desktop client without authentication.
+Binding to a nonlocal interface is prohibited in this version; CORS is not
+allowed by default, so a browser client requires a separate decision.
+Profiles separate history but are not a security boundary between OS users.
+Any local process with API access can read the data.
 
-Установка зависимостей и первоначальная загрузка модели могут требовать сети.
-После сборки сервера и загрузки модели рабочий сценарий выполняется без сети.
-Сервер запускается и без Ollama. Предусмотреть корректное завершение HTTP,
-отмену генерации и закрытие базы. Логи не содержат тела опросов и текста модели.
+Installing dependencies and initially downloading the model may require network
+access. After building the server and downloading the model, the workflow runs
+offline. The server also starts without Ollama. Provide graceful HTTP shutdown,
+generation cancellation, and database closing. Logs contain neither survey
+bodies nor model text.
 
-## Данные и жизненный цикл
+## Data and lifecycle
 
-Идентификаторы генерирует сервер, непрозрачные случайные строки. Все серверные
-времена — UTC в RFC3339. Входное `performed_at` — обязательное RFC3339 с часовым
-поясом; время получения сервером сохраняется отдельно. Будущее более чем на
-5 минут отклоняется. История сортируется по performed_at, затем по ID.
+The server generates opaque random string identifiers. All server timestamps
+are UTC in RFC3339. Input `performed_at` is required RFC3339 with a timezone;
+server receipt time is stored separately. Times more than 5 minutes in the
+future are rejected. History sorts by performed_at, then ID.
 
-- **Профиль:** id, display_name (1–100 символов), created_at.
-- **Сессия:** id, profile_id, client_session_id, performed_at, received_at,
-  protocol_version (`reaction-memory-v1`), source (`observed` или `synthetic`),
-  самооценка, исходные результаты, версия расчётов.
-- **Самооценка:** sleep_hours (0–24), fatigue (0–10), stress (0–10),
-  mood (0–10, выше — лучше). Все поля обязательны. Шкалы — продуктовый
-  опрос, не валидированная клиническая методика. Свободного текста пока нет.
-- **Реакция:** массив trials (1–200), каждый содержит outcome
-  (`valid`, `premature`, `missed`); reaction_ms требуется только для valid
-  и должен быть конечным числом от 1 до 10000. Для других outcomes поле
-  отсутствует. Единицы — миллисекунды.
-- **Память:** correct и total — целые числа, 1 <= total <= 1000,
-  0 <= correct <= total. Это доля правильных ответов, без предположения
-  о конкретной механике игры.
-- **Объяснение:** session_id, статус (`ready`, `unavailable`, `invalid`),
-  версия входного отчёта и baseline_session_id, модель, время,
-  проверенная структура ответа; технический текст ошибки наружу не передаётся.
+- **Profile:** id, display_name (1–100 characters), created_at.
+- **Session:** id, profile_id, client_session_id, performed_at, received_at,
+  protocol_version (`reaction-memory-v1`), source (`observed` or `synthetic`),
+  self-report, raw results, calculation version.
+- **Self-report:** sleep_hours (0–24), fatigue (0–10), stress (0–10),
+  mood (0–10, higher is better). Every field is required. The scales form a
+  product survey, not a validated clinical instrument. No free text yet.
+- **Reaction:** trials array (1–200), each containing outcome
+  (`valid`, `premature`, `missed`); reaction_ms is required only for valid
+  and must be a finite number from 1 to 10000. It is absent for other
+  outcomes. Units: milliseconds.
+- **Memory:** correct and total are integers, 1 <= total <= 1000,
+  0 <= correct <= total. This is the proportion of correct answers, without
+  assuming specific game mechanics.
+- **Explanation:** session_id, status (`ready`, `unavailable`, `invalid`),
+  input report version and baseline_session_id, model, time, validated
+  response structure; technical error text is not exposed externally.
 
-Опрос и оба задания сохраняются одной транзакцией. Входные неполные сессии
-отклоняются; черновики остаются в Godot. Сохранённая сессия неизменяема.
-Для повторной отправки Godot создаёт UUID в client_session_id: уникальность
-внутри профиля. Семантически одинаковый запрос возвращает существующую сессию;
-другие данные с тем же ключом возвращают 409. Порядок ключей JSON значения не имеет.
+The survey and both tasks are saved in one transaction. Incomplete incoming
+sessions are rejected; drafts remain in Godot. A saved session is immutable.
+For retries, Godot generates a UUID in client_session_id, unique within a
+profile. A semantically identical request returns the existing session;
+different data with the same key returns 409. JSON key order is irrelevant.
 
-SQLite хранит профили, сессии и объяснения; исходные результаты могут храниться
-как проверенный JSON внутри строки сессии. Индексы по профилю, времени и ключу
-повторной отправки; внешние ключи включены. Миграции встроены в бинарник,
-применяются транзакционно, версия схемы фиксируется. Настроить busy timeout,
-WAL и ограничение соединений. Данные, WAL, сборки и веса модели исключены из Git.
-Тесты используют временные базы. Документация описывает резервную копию при
-остановленном сервере вместе с файлами SQLite и восстановление из неё.
+SQLite stores profiles, sessions, and explanations; raw results may be stored
+as validated JSON within the session row. Indexes cover profile, time, and
+retry key; foreign keys are enabled. Migrations are embedded in the binary,
+applied transactionally, and record the schema version. Configure busy timeout,
+WAL, and connection limits. Data, WAL, builds, and model weights are excluded
+from Git. Tests use temporary databases. Documentation describes backup with
+the server stopped, including SQLite files, and restoration from that backup.
 
-## Расчёты и сравнение
+## Calculations and comparison
 
-Версия расчётов `v1`. Сервер возвращает количество valid/premature/missed,
-среднее и медиану reaction_ms для valid, долю правильных ответов памяти
-correct / total * 100. Если valid отсутствуют, среднее и медиана равны null.
-Показатели опроса возвращаются с названиями шкал и единицами.
+Calculation version `v1`. The server returns valid/premature/missed counts,
+mean and median reaction_ms for valid trials, and memory correct-answer
+percentage correct / total * 100. Without valid trials, mean and median are
+null. Survey measures are returned with scale names and units.
 
-Baseline — ближайшая строго более ранняя сессия того же профиля с теми же
-protocol_version и source; равное performed_at не считается более ранним.
-Порядок загрузки не влияет на выбор. Для реакции — разность медиан в мс,
-для памяти — разность в процентных пунктах, для опроса — разность по полям.
-Относительное изменение медианы в процентах возвращается при наличии обеих
-медиан. При отсутствии baseline — null и явное пояснение. Реальные и
-синтетические данные сравниваются раздельно. Изменение протокола задания
-потребует новой версии, поэтому клиент обязан присылать текущую версию.
+Baseline is the nearest strictly earlier session for the same profile with
+the same protocol_version and source; equal performed_at is not earlier.
+Upload order does not affect selection. Reaction uses the median difference
+in ms, memory the difference in percentage points, and the survey differences
+by field. Relative median change in percent is returned when both medians
+exist. Without a baseline, return null and an explicit explanation. Real and
+synthetic data are compared separately. Changing the task protocol requires
+a new version, so the client must submit the current version.
 
-Это описание выполнения заданий: без универсального «балла здоровья»,
-клинических порогов, диагноза или заключения о пригодности к работе.
-При добавлении задним числом более подходящей baseline отчёт пересчитывается,
-а сохранённое объяснение старой версии входных данных не показывается как актуальное.
+This describes task performance: no universal “health score”, clinical
+thresholds, diagnosis, or fitness-for-duty conclusion. If a more suitable
+baseline is backfilled, recalculate the report and do not show an explanation
+saved for old input data as current.
 
 ## HTTP API
 
-Все тела запросов и ответы — JSON UTF-8, кроме HTML-отчёта. Префикс `/api/v1`.
-Финальная OpenAPI-спецификация содержит точные схемы и примеры.
+All request bodies and responses are UTF-8 JSON except the HTML report.
+Prefix: `/api/v1`. The final OpenAPI specification contains exact schemas
+and examples.
 
-| Метод и путь | Поведение |
+| Method and path | Behavior |
 | --- | --- |
-| GET /healthz | 200 при работающем процессе; без запроса к модели |
-| GET /readyz | готовность SQLite; 503 при ошибке, без зависимости от Ollama |
-| GET /api/v1/model/status | ограниченная по времени проверка Ollama и наличия модели |
-| POST /api/v1/profiles | создание профиля, 201 |
-| GET /api/v1/profiles | список профилей с limit/offset |
-| GET /api/v1/profiles/{id} | профиль или 404 |
-| POST /api/v1/profiles/{id}/sessions | атомарное сохранение, 201; повтор — 200 |
-| GET /api/v1/profiles/{id}/sessions | история с limit/offset, от новых к старым |
-| GET /api/v1/sessions/{id} | исходные данные и метаданные |
-| GET /api/v1/sessions/{id}/report | числовой отчёт и актуальное объяснение, если есть |
-| GET /api/v1/sessions/{id}/report.html | экранированный HTML для просмотра и печати |
-| POST /api/v1/sessions/{id}/explanation | отдельная ограниченная по времени генерация |
+| GET /healthz | 200 while the process is running; no model call |
+| GET /readyz | SQLite readiness; 503 on error, independent of Ollama |
+| GET /api/v1/model/status | Time-limited check of Ollama and model availability |
+| POST /api/v1/profiles | Create profile, 201 |
+| GET /api/v1/profiles | Profile list with limit/offset |
+| GET /api/v1/profiles/{id} | Profile or 404 |
+| POST /api/v1/profiles/{id}/sessions | Atomic save, 201; retry — 200 |
+| GET /api/v1/profiles/{id}/sessions | History with limit/offset, newest first |
+| GET /api/v1/sessions/{id} | Raw data and metadata |
+| GET /api/v1/sessions/{id}/report | Numerical report and current explanation, if any |
+| GET /api/v1/sessions/{id}/report.html | Escaped HTML for viewing and printing |
+| POST /api/v1/sessions/{id}/explanation | Separate time-limited generation |
 
-Пагинация: limit по умолчанию 20, максимум 100, offset >= 0.
-Форма списка `{items, limit, offset, total}`. Неизвестный профиль — 404,
-а существующий профиль без сессий — пустой список.
-Одинаковый контракт ошибок `{error: {code, message, fields?}}`.
-400 — неверный JSON/параметры; 413 — тело больше 256 KiB;
-415 — неверный Content-Type для JSON-тела; 422 — нарушение предметной схемы;
-404 — отсутствие ресурса; 409 — конфликт повторной отправки или занятая
-генерация; 500/503 — внутренний сбой/неготовность хранилища без утечки деталей.
-Отклоняются неизвестные поля, лишние JSON-значения, неконечные числа,
-пропущенные обязательные поля (включая поля, у которых допустим ноль),
-неподдерживаемый протокол и некорректные идентификаторы.
+Pagination: default limit 20, maximum 100, offset >= 0.
+List shape: `{items, limit, offset, total}`. An unknown profile returns 404;
+an existing profile without sessions returns an empty list.
+Shared error contract: `{error: {code, message, fields?}}`.
+400 — invalid JSON/parameters; 413 — body larger than 256 KiB;
+415 — wrong Content-Type for a JSON body; 422 — domain schema violation;
+404 — missing resource; 409 — retry conflict or busy generation;
+500/503 — internal failure/storage not ready without leaking details.
+Reject unknown fields, extra JSON values, nonfinite numbers, missing required
+fields (including those allowing zero), unsupported protocols, and invalid IDs.
 
-## Qwen3 8B и достоверность
+## Qwen3 8B and factual accuracy
 
-Адаптер вызывает локальный `POST /api/chat`: model `qwen3:8b`, stream false,
-think false, temperature 0, ограничение длины ответа и таймаут по умолчанию
-120 секунд. Одновременно выполняется максимум одна генерация; лишний запрос
-получает 409. Обычные API-запросы продолжают работать. Клиент Godot должен
-выделять отдельный HTTPRequest с таймаутом больше серверного для объяснения.
+The adapter calls local `POST /api/chat`: model `qwen3:8b`, stream false,
+think false, temperature 0, bounded response length, default timeout 120 seconds.
+At most one generation runs at once; additional requests receive 409. Normal
+API requests continue working. The Godot client must allocate a separate
+HTTPRequest for explanations with a timeout longer than the server's.
 
-В prompt отправляются только рассчитанный отчёт, baseline и описание шкал,
-без display_name и иных идентифицирующих данных. Выход — JSON Schema с тремя
-массивами fact_ids: observations (текущие результаты), comparisons (сравнение)
-и limitations (ограничения). Допустимые факты сервер заранее создаёт из отчёта
-с устойчивыми ID и категорией; Qwen выбирает и упорядочивает факты. Go проверяет
-ссылки и категории и формирует объяснение на русском из собственного словаря,
-без публикации свободного текста модели. Каждый факт — самостоятельное
-описательное утверждение, поэтому порядок не создаёт причинных утверждений.
+The prompt includes only the calculated report, baseline, and scale descriptions,
+without display_name or other identifying data. Output uses JSON Schema with
+three fact_ids arrays: observations (current results), comparisons, and
+limitations. The server prepares allowed facts from the report with stable IDs
+and categories; Qwen selects and orders facts. Go validates references and
+categories and builds the explanation in Russian using its own dictionary,
+without publishing the model's free text. Each fact is an independent descriptive
+statement, so ordering does not create causal claims.
 
-Проверка JSON, длины, разрешённых fact_ids, категорий, повторов и отсутствия
-дополнительных полей обязательна. Нужен хотя бы один observation; все обязательные
-limitations (синтетический источник, отсутствие baseline/валидной реакции,
-немедицинский характер результатов) добавляет Go независимо от выбора модели.
-Модель не формирует диагнозы и рекомендации по лечению в публикуемом тексте:
-свободного текстового поля в контракте нет. Неверный ответ не публикуется.
-Числовой отчёт всегда доступен. Ограничение подхода явно указать: это объяснение
-на основе выбора проверенных фактов, а не свободная медицинская консультация;
-модель может выбрать менее полезный порядок, но не изменить значения фактов.
+Validation of JSON, length, allowed fact_ids, categories, duplicates, and absence
+of additional fields is mandatory. At least one observation is required; Go
+adds all mandatory limitations (synthetic source, missing baseline/valid reaction,
+nonmedical nature of results) regardless of model selection. The model cannot
+produce diagnoses or treatment recommendations in published text: the contract
+has no free-text field. Invalid output is not published. The numerical report
+is always available. Explicitly state the approach's limitation: this is an
+explanation based on selection of validated facts, not free-form medical advice;
+the model may choose a less useful order but cannot change fact values.
 
-Генерация возвращает 200 с `{status, explanation, reason?}`: ready при успехе,
-unavailable при таймауте/недоступной модели, invalid при неприемлемом ответе.
-Сохраняется только проверенное ready-объяснение с отпечатком входных данных;
-ошибка повторного запроса не уничтожает уже сохранённое актуальное объяснение.
-При отмене запроса отменяется и обращение к Ollama. Перезапуск сервера
-не требует восстановления очереди: фоновых постоянных задач в этой версии нет.
+Generation returns 200 with `{status, explanation, reason?}`: ready on success,
+unavailable on timeout/model unavailability, invalid for unacceptable output.
+Only a validated ready explanation is stored, with an input fingerprint;
+a failed retry does not destroy an already-saved current explanation.
+Cancelling the request also cancels the Ollama call. Server restart does not
+require queue recovery: this version has no persistent background jobs.
 
-## Документация и проверка готовности
+## Documentation and readiness verification
 
-Обновить README.md и PLAN.md под фактическое состояние, убрать часы из
-актуальной архитектуры. Добавить OpenAPI, примеры curl/PowerShell и отдельный
-пример GDScript с опросом, сохранением, историей, отчётом и объяснением.
-Не создавать отсутствующие игровые сцены в рамках backend-задачи.
+Update README.md and PLAN.md to reflect actual state, removing watches from
+the current architecture. Add OpenAPI, curl/PowerShell examples, and a separate
+GDScript example covering the survey, saving, history, report, and explanation.
+Do not create the missing game scenes within the backend task.
 
-Обязательные проверки:
+Required checks:
 
-- расчёты на заранее известных значениях, отсутствие valid, отсутствие baseline,
-  несовместимые протоколы/источники и порядок performed_at;
-- SQLite: миграции, ограничения, атомарность, повторные запросы, сохранность
-  после закрытия и повторного открытия;
-- HTTP: полный сценарий от профиля до обоих форматов отчёта, пагинация,
-  ошибки валидации, пустые и неизвестные ресурсы, экранирование HTML;
-- mock Ollama: успех, неправильный JSON/факты, таймаут, недоступность,
-  занятость, отмена; все эти сбои не мешают сохранению и отчёту;
-- gofmt, go vet, go test и сборка Windows-бинарника;
-- реальный запуск API на временной базе и запрос к локальной qwen3:8b
-  на явно синтетической сессии; отдельная проверка полного сценария с
-  неработающим адресом Ollama и отключённым доступом сервера к внешней сети
-  через конфигурацию теста/контролируемый транспорт без изменения настроек ОС.
+- Calculations with known values, no valid trials, no baseline, incompatible
+  protocols/sources, and performed_at ordering;
+- SQLite: migrations, constraints, atomicity, retries, persistence after closing
+  and reopening;
+- HTTP: complete workflow from profile to both report formats, pagination,
+  validation errors, empty/unknown resources, HTML escaping;
+- Mock Ollama: success, invalid JSON/facts, timeout, unavailability, busy state,
+  cancellation; none of these failures disrupt saving or reporting;
+- gofmt, go vet, go test, and a Windows binary build;
+- Real API launch on a temporary database and a local qwen3:8b request for an
+  explicitly synthetic session; a separate complete-workflow check with an
+  unreachable Ollama address and external server network access disabled
+  through test configuration/controlled transport without changing OS settings.
 
-Доказательства и ограничения фиксируются в итоговом отчёте проверки.
-Если запуск модели неудачен, это не заменяется mock-тестом: причина указывается,
-а реальная интеграция остаётся неподтверждённой до успешной проверки.
+Evidence and limitations are recorded in the final verification report.
+A failed model launch is not replaced by a mock test: state the cause, and leave
+real integration unconfirmed until a successful check.
 
-## Решения исполнителя
+## Implementer decisions
 
-Точные имена пакетов и полей OpenAPI, SQL-структура внутри описанной модели,
-настройки HTTP-таймаутов, формат ID, кодировка канонического payload для
-идемпотентности, форматирование HTML и вспомогательные скрипты выбирает
-исполнитель. Они должны сохранять поведение и ограничения этой спецификации.
+Exact package and OpenAPI field names, SQL structure within the described model,
+HTTP timeout settings, ID format, canonical payload encoding for idempotency,
+HTML formatting, and helper scripts are chosen by the implementer. They must
+preserve this specification's behavior and constraints.

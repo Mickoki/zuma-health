@@ -27,7 +27,7 @@ func TestGameSurveySnapshotAndReplay(t *testing.T) {
 		t.Fatal(report.Survey)
 	}
 	html := request(r.h, "GET", "/api/v1/game-runs/"+run.ID+"/report.html", "")
-	if !strings.Contains(html.Body.String(), "Сон: 8 ч") {
+	if !strings.Contains(html.Body.String(), "Sleep: 8 h") {
 		t.Fatal(html.Body.String())
 	}
 	stress = 3
@@ -64,7 +64,7 @@ func TestGameExplanationUsesSavedSurveyAndTimingLimit(t *testing.T) {
 		Explanation *domain.Explanation `json:"explanation"`
 	}
 	result := decode[explanationResponse](t, request(r.h, "POST", "/api/v1/game-runs/"+run.ID+"/explanation", ""), 200)
-	if result.Status != "ready" || result.Explanation == nil || len(result.Explanation.Observations) != 1 || result.Explanation.Observations[0].ID != "survey" || !strings.Contains(result.Explanation.Observations[0].Text, "усталость 0.00/10") {
+	if result.Status != "ready" || result.Explanation == nil || len(result.Explanation.Observations) != 1 || result.Explanation.Observations[0].ID != "survey" || !strings.Contains(result.Explanation.Observations[0].Text, "fatigue 0.00/10") {
 		t.Fatal(result)
 	}
 	var timing, medical bool

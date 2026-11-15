@@ -27,7 +27,7 @@ func capture() -> void:
 		root.add_child(app)
 		await process_frame
 		await shot("home-" + tag)
-		app.selected_profile = {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Демонстрация дизайна"}
+		app.selected_profile = {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Design demonstration"}
 		app.drafts[app.selected_profile.id] = {"sleep_hours": 8.0, "fatigue": 0.0, "stress": 2.0, "mood": 7.0}
 		app.show_survey()
 		await shot("survey-" + tag)

@@ -1,40 +1,40 @@
 # Zuma Minigames
 
-Переносимый модуль для **Godot 4.7.2 Standard / GDScript / Compatibility**.
-Четыре игры, инструкции, уровни сложности, результаты, offline-очередь и
-доставка в Go API. Главное меню приложения не изменяется.
+Portable module for **Godot 4.7.2 Standard / GDScript / Compatibility**.
+Four games, instructions, difficulty levels, results, an offline queue, and
+delivery to the Go API. The application's main menu is unchanged.
 
-В модуль включены собственные SVG-иконки, тема и лёгкий шейдер орбитального
-фона. Их перенос вместе с папкой addon сохраняет автономность. Основное
-приложение использует копию темы в `theme/zuma_theme.tres`.
-Таймеры используют системный моноширинный шрифт (JetBrains Mono, Consolas
-или DejaVu Sans Mono); интернет и загрузка шрифтов для запуска не нужны.
-R перезапускает игру, Esc возвращает назад, 1–4 выбирают ответ в математике.
-При потере фокуса появляется оверлей; скрытые сцены не принимают горячие клавиши.
+The module includes its own SVG icons, theme, and lightweight orbital-background
+shader. Copying them with the addon folder preserves standalone operation.
+The main application uses a theme copy at `theme/zuma_theme.tres`.
+Timers use a system monospaced font (JetBrains Mono, Consolas, or DejaVu Sans Mono);
+startup requires neither internet access nor font downloads.
+R restarts the game, Esc goes back, and 1–4 selects an answer in Speed Math.
+Losing focus opens an overlay; hidden scenes do not accept shortcuts.
 
-## Открыть демо
+## Open the demo
 
-Откройте `demo.tscn` из этой папки в Godot и нажмите F6. Либо из PowerShell:
+Open `demo.tscn` from this folder in Godot and press F6, or use PowerShell:
 
 ```powershell
 & 'C:\Games\steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\Documents\Zuma\zuma-health' --scene res://addons/zuma_minigames/demo.tscn
 ```
 
-В демо можно выбрать игру/сложность, создать или выбрать серверный профиль,
-явно привязать прежние локальные результаты и повторить отправку. Без сервера
-игры доступны; без profile_id результаты остаются непривязанными. Новые игры
-при выборе «Без серверного профиля» не наследуют ранее привязанный профиль.
+In the demo, select a game/difficulty, create or select a server profile,
+explicitly bind previous local results, and retry sending. Games are available
+without a server; without profile_id, results remain unassigned. New games
+started with “No server profile” do not inherit a previously bound profile.
 
-Потеря фокуса окна прерывает начатую попытку. Перед включением записи экрана
-настройте рекордер, затем вернитесь в окно игры и начинайте. Прерванный результат
-сохраняется; «Заново» создаёт новую попытку с новым UUID и случайной раскладкой.
+Losing window focus interrupts a started attempt. Before recording the screen,
+configure the recorder, then return to the game window and start. The interrupted
+result is saved; “Restart” creates a new attempt with a new UUID and random layout.
 
-## Подключить к другому приложению
+## Connect to another application
 
-Скопируйте **всю** папку `addons/zuma_minigames` в такую же папку принимающего
-проекта. Не нужны Autoload, EditorPlugin, дополнительные InputMap-действия
-или сцены главного приложения. Используются собственные ресурсы и локальные
-preload, глобальных class_name нет. Минимальный размер области модуля — 960×540.
+Copy the **entire** `addons/zuma_minigames` folder to the same location in the
+host project. No Autoload, EditorPlugin, extra InputMap actions, or main
+application scenes are required. The module uses its own resources and local
+preload; there are no global class_name declarations. Minimum module area: 960×540.
 
 ```gdscript
 const Minigames = preload("res://addons/zuma_minigames/module.tscn")
@@ -68,99 +68,101 @@ func _on_delivery(client_run_id: String, state: String, message: String) -> void
 	print(client_run_id, " ", state, " ", message)
 ```
 
-Публичные методы:
+Public methods:
 
-- `configure(options: Dictionary) -> Error`: до активной игры/отправки;
-  ERR_BUSY при попытке смены конфигурации в процессе, ERR_INVALID_PARAMETER
-  при неверных параметрах. Ошибка диска возвращается явно, но игра остаётся
-  доступной, а несохранённый результат удерживается в памяти.
-  Необязательный `survey` — сохранённый опрос с четырьмя числовыми полями
-  `sleep_hours`, `fatigue`, `stress`, `mood`; его копия фиксируется при запуске
-  задания и входит в неизменяемый payload. Пустой словарь сохраняет совместимость
-  автономного модуля с прежними прохождениями.
+- `configure(options: Dictionary) -> Error`: before an active game/upload;
+  ERR_BUSY if configuration changes are attempted during either operation,
+  ERR_INVALID_PARAMETER for invalid parameters. Disk errors are returned
+  explicitly, but gameplay remains available and unsaved results stay in memory.
+  Optional `survey` is a saved survey with four numeric fields:
+  `sleep_hours`, `fatigue`, `stress`, `mood`; its snapshot is captured at task
+  start and included in the immutable payload. An empty dictionary preserves
+  standalone-module compatibility with previous runs.
 - `start_game(game_id: String, difficulty: String = "easy") -> Error`:
-  открывает инструкцию; игра начинается по кнопке «Начать».
-- `cancel_game()`: сохраняет активную попытку как aborted, повторно не завершает её.
-- `retry_pending()`: одна последовательная попытка доставки накопленных записей.
-- `pending_count() -> int`: количество ожидающих/ещё не записанных результатов.
-- `bind_owner(owner_key: String, profile_id: String) -> Error`: явная привязка
-  ранее локального владельца к профилю. Привязка неизменяема; другой профиль
-  требует другого owner_key. Адрес берётся из configure.
+  opens instructions; gameplay begins with the “Start” button.
+- `cancel_game()`: saves the active attempt as aborted without finishing it twice.
+- `retry_pending()`: one sequential delivery attempt for accumulated records.
+- `pending_count() -> int`: number of pending/not-yet-written results.
+- `bind_owner(owner_key: String, profile_id: String) -> Error`: explicitly binds
+  a previously local owner to a profile. The binding is immutable; another
+  profile requires another owner_key. The address comes from configure.
 
-Сигналы:
+Signals:
 
-- `run_finished(payload: Dictionary)` — неизменяемый по смыслу журнал прохождения.
+- `run_finished(payload: Dictionary)` — a semantically immutable run log.
 - `delivery_changed(client_run_id: String, state: String, message: String)` —
-  pending/sending/sent/unassigned/storage_error/storage_warning. Message — текст
-  для человека, а не формат для машинного разбора. Серверная квитанция с ID
-  доступна в архиве sent; принимающее приложение также может самостоятельно
-  отправлять payload и получать server ID, установив auto_upload=false.
-- `module_exit_requested()` — игрок нажал «Назад»; host решает, какой экран показать.
+  pending/sending/sent/unassigned/storage_error/storage_warning. Message is
+  human-readable text rather than a machine-parsing format. The server receipt
+  with its ID is available in the sent archive; the host application can also
+  send payloads and obtain server IDs itself by setting auto_upload=false.
+- `module_exit_requested()` — the player clicked “Back”; the host decides which
+  screen to show.
 
-Для offline-запуска без профиля передайте пустой profile_id и собственный
-устойчивый owner_key. Host должен хранить этот ключ между перезапусками и
-разделять локальных игроков. После привязки создавайте новый непривязанный
-owner_key для будущих гостей; неизменяемый ключ не означает нового человека.
+For offline startup without a profile, pass an empty profile_id and your own
+stable owner_key. The host must persist this key across restarts and separate
+local players. After binding, create a new unassigned owner_key for future
+guests; an immutable key does not represent a new person.
 
-## Правила
+## Rules
 
-| Игра | Легко / обычно / сложно |
+| Game | Easy / Normal / Hard |
 | --- | --- |
-| fifteen | 30 / 90 / 180 случайных легальных перемешиваний поля 4×4 |
-| pairs | 9 / 12 / 18 пар, показ 5 / 4 / 3 секунды, пауза ошибки 0,7 с |
-| math | 20 разных примеров, общий лимит 60 с, на пример 8 / 6 / 4 с |
-| chimp | от 5→12 / 6→18 / 9→24 чисел; ошибок максимум 4 / 3 / 2 |
+| fifteen — Fifteen Puzzle | 30 / 90 / 180 random legal shuffle moves on a 4×4 board |
+| pairs — Find the Pair | 9 / 12 / 18 pairs, preview 5 / 4 / 3 seconds, mismatch delay 0.7 s |
+| math — Speed Math | 20 distinct problems, overall limit 60 s, 8 / 6 / 4 s per problem |
+| chimp — Remember the Numbers | 5→12 / 6→18 / 9→24 numbers; maximum mistakes 4 / 3 / 2 |
 
-Математический пул: 992 / 6042 / 23880 разных выражений. Коммутативные
-перестановки считаются одним выражением. Четыре разных варианта, ровно один
-правильный; ответ на границе дедлайна не принимается. Есть ручной пропуск.
-В Chimp после выбора 1 числа скрываются; выбор по возрастанию, после ошибки
-новая раскладка с тем же количеством, после успеха — на одно число больше.
+Math pool: 992 / 6042 / 23880 distinct expressions. Commutative permutations
+count as one expression. Four distinct options, exactly one correct; an answer
+at the deadline boundary is rejected. Manual skipping is available.
+In Remember the Numbers, numbers are hidden after selecting 1; choose in ascending
+order. An error produces a new layout with the same count; success adds one number.
 
-Настройки нагрузки увеличены на 50% относительно исходного предложения;
-это не медицинская/научная оценка сложности. Пятнашки всегда разрешимы;
-число перемешиваний не равно оптимальной длине решения. Новый запуск получает
-новую раскладку, непосредственно предыдущая в текущей работе модуля не повторяется.
+Load settings are increased by 50% relative to the original proposal;
+this is not a medical/scientific difficulty assessment. Fifteen Puzzle is always
+solvable; shuffle count is not the optimal solution length. A new start gets
+a new layout, and the immediately preceding layout in the current module
+session is not repeated.
 
-Часы для длительностей монотонны. UTC performed_at — только метка начала.
-Назад/Заново/потеря фокуса/удаление активной сцены завершают попытку как aborted.
-Технические пределы: 24 часа, 10000 событий, 1 MiB серверного JSON. При
-приближении к пределу запись завершается с recording_limit. Synthetic-источник
-явно виден в игре и отчёте. Диагнозов и общего балла здоровья нет.
+Duration clocks are monotonic. UTC performed_at is only the start timestamp.
+Back/Restart/focus loss/removal of an active scene ends the attempt as aborted.
+Technical limits: 24 hours, 10000 events, 1 MiB server JSON. Approaching a limit
+ends recording with recording_limit. Synthetic data is clearly labeled in the
+game and report. There are no diagnoses or overall health score.
 
-## Очередь и восстановление
+## Queue and recovery
 
-По умолчанию данные находятся в `user://zuma_minigames/`:
+Default data location: `user://zuma_minigames/`:
 
-- pending — owner_key и неизменяемый payload на каждый UUID;
-- routes — профиль/локальный URL, зафиксированные до отправки;
-- sent — исходный результат, маршрут и подтверждённая серверная квитанция;
-- bindings.json — явные неизменяемые привязки владельцев;
-- corrupt — повреждённые/незавершённые файлы для восстановления, не удаляются молча.
+- pending — owner_key and immutable payload for each UUID;
+- routes — profile/local URL fixed before sending;
+- sent — original result, route, and confirmed server receipt;
+- bindings.json — explicit immutable owner bindings;
+- corrupt — damaged/incomplete files retained for recovery, never silently deleted.
 
-Запись: временный файл в том же каталоге → flush/close → переименование.
-После перезапуска полные временные файлы восстанавливаются, повреждённые
-сохраняются с предупреждением. Некорректные вложенные привязки/квитанции
-не считаются успешной доставкой. Потерянный ответ безопасен: тот же UUID
-даёт 200 с прежним server ID. 409/422 сохраняют запись для диагностики.
-После первой сетевой/5xx ошибки остальные записи этого адреса пропускаются,
-чтобы не ждать таймаут для каждой; записи других серверов продолжают отправку.
-Следующая попытка — вручную или при новом результате.
+Writing: temporary file in the same directory → flush/close → rename.
+After restart, complete temporary files are recovered; corrupted files are
+retained with a warning. Invalid nested bindings/receipts do not count as
+successful delivery. A lost response is safe: the same UUID yields 200 with
+the previous server ID. 409/422 preserve the record for diagnostics.
+After the first network/5xx error, remaining records for that address are
+skipped to avoid waiting through a timeout for each; records for other servers
+continue sending. The next attempt is manual or triggered by a new result.
 
-Смена профиля не меняет старые маршруты. Если очередь не записалась на диск,
-payload передаётся host сигналом и удерживается в памяти; перед закрытием
-приложения устраните ошибку и повторите сохранение. При физически недоступном
-диске гарантировать восстановление после выключения невозможно.
+Switching profiles does not change old routes. If the queue could not be
+written to disk, the payload is passed to the host through a signal and kept
+in memory; fix the error and retry saving before closing the application.
+Recovery after power-off cannot be guaranteed when the disk is physically unavailable.
 
-Хранение рассчитано на один процесс/одного worker. Принимающее приложение
-должно предотвращать одновременное использование одного каталога несколькими
-экземплярами. SQLite и файлы результатов не зашифрованы; права регулирует ОС.
-Не публикуйте реальные данные в Git. Для резервной копии остановите приложение
-и скопируйте весь каталог очереди вместе с данными сервера.
+Storage is designed for one process/one worker. The host application must
+prevent multiple instances from using the same directory simultaneously.
+SQLite and result files are not encrypted; the OS controls permissions.
+Do not publish real data in Git. For backups, stop the application and copy
+the entire queue directory together with server data.
 
-## Проверки
+## Checks
 
-Из корня проекта, подставив путь к Godot:
+From the project root, substitute your Godot path:
 
 ```powershell
 $godotExe = 'C:\Games\steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe'
@@ -172,11 +174,11 @@ $godotExe = 'C:\Games\steam\steamapps\common\Godot Engine\godot.windows.opt.tool
 & $godotExe --headless --path . --script res://addons/zuma_minigames/tests/test_layout.gd 2>&1
 ```
 
-`tests/export_runs.gd -- <absolute-output-dir>` формирует 12 синтетических
-прохождений для проверки Go; `tests/playtest_ui.gd -- <absolute-output-dir>`
-проходит четыре сложные игры с настоящими GUI mouse events в 960×540 и делает
-снимки. Он открывает тестовое окно; не двигайте мышь во время автоматического
-прогона. `test_delivery.gd` принимает JSON-конфигурацию и фазу offline/online;
-сценарий рассчитан на отдельную тестовую SQLite, не на рабочий профиль.
+`tests/export_runs.gd -- <absolute-output-dir>` generates 12 synthetic runs
+for Go verification; `tests/playtest_ui.gd -- <absolute-output-dir>` completes
+four Hard games using real GUI mouse events at 960×540 and takes screenshots.
+It opens a test window; do not move the mouse during the automated run.
+`test_delivery.gd` accepts JSON configuration and an offline/online phase;
+the scenario is designed for separate test SQLite, not a working profile.
 
-Точный API: [серверная документация](../../server/docs/minigames.md).
+Exact API: [server documentation](../../server/docs/minigames.md).

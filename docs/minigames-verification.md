@@ -1,32 +1,32 @@
-# Проверка модуля мини-игр — 2026-11-14
+# Minigames module verification — 2026-11-14
 
-Реализованы четыре независимые игры в `addons/zuma_minigames/` и API отдельных
-прохождений в Go. Рабочая ветка `feat/minigames-module`; публикация и слияние
-не выполнялись. Основное меню приложения не подключалось к модулю.
+Four independent games in `addons/zuma_minigames/` and a Go API for individual
+runs were implemented. Working branch: `feat/minigames-module`; nothing was
+published or merged. The main application menu was not connected to the module.
 
-## Подтверждённые сценарии
+## Confirmed scenarios
 
-| Требование | Проверка и результат |
+| Requirement | Check and result |
 | --- | --- |
-| Четыре игры, случайные раскладки, три сложности | Godot `test_rules.gd`: PASS; 12 журналов из Godot приняты независимым Go replay |
-| Инструкции, запуск, перезапуск, выход, результаты | Четыре полных прохождения через GUI на высокой сложности при 960×540: PASS |
-| Переносимость addon | Шесть headless-наборов в основном и отдельном минимальном проекте: PASS |
-| Фокус и удаление модуля | `test_module.gd`: единственный aborted-результат, включая host_removed |
-| Хранение и миграция | Go: миграция заполненной схемы1→2 сохраняет прежние записи; повтор UUID и конкурирующая запись проверены |
-| Серверные расчёты и история | Все четыре GUI-результата отправлены в API, сохранены, получены через историю и JSON/HTML-отчёты |
-| Сравнение | Изоляция по игре, конфигурации, сложности, источнику и исходу; aborted исключены; проигрыши chimp сопоставляются |
-| Отсутствие сети и перезапуск | Отдельный offline-процесс сохранил12 записей; новый online-процесс доставил ровно12 |
-| Потерянное подтверждение | Повтор уже сохранённого UUID не создал13-ю запись |
-| Ошибки доставки | 409/422 сохраняют запись в очереди; недоступный сервер останавливает пакет отправки |
-| Владение результатами | `test_profile_ownership.gd`: неудачная смена профиля откатывается; непривязанные игры не наследуют прежнюю привязку |
-| Повреждение файлов | `test_recovery.gd`: некорректные вложенные routes/receipts/bindings обрабатываются без потери валидных записей |
-| Локальная модель | Реальный qwen3:8b через Ollama: новый математический отчёт получил ready и кеш; отсутствие модели не блокирует игры/отчёты |
-| Контракт API | Swagger Parser и AJV2020: OpenAPI3.1, четыре примера, реальные четыре run/report, история и ответ Qwen — PASS |
-| Отдельная Windows-сборка | Release x86_64 с embedded PCK: headless-запуск exit0; нативное окно, меню, инструкция и поле пятнашек проверены |
+| Four games, random layouts, three difficulties | Godot `test_rules.gd`: PASS; 12 Godot logs accepted by independent Go replay |
+| Instructions, start, restart, exit, results | Four complete GUI runs on Hard at 960×540: PASS |
+| Addon portability | Six headless suites in the main and a separate minimal project: PASS |
+| Focus and module removal | `test_module.gd`: a single aborted result, including host_removed |
+| Storage and migration | Go: migrating populated schema 1→2 preserves old records; repeated UUID and concurrent writes checked |
+| Server calculations and history | All four GUI results submitted to the API, saved, and retrieved through history and JSON/HTML reports |
+| Comparison | Isolation by game, configuration, difficulty, source, and outcome; aborted runs excluded; chimp losses compared |
+| Offline operation and restart | A separate offline process saved 12 records; a new online process delivered exactly 12 |
+| Lost acknowledgment | Retrying an already-saved UUID did not create a 13th record |
+| Delivery errors | 409/422 keep the record in the queue; an unavailable server stops the upload batch |
+| Result ownership | `test_profile_ownership.gd`: failed profile switching rolls back; unbound games do not inherit an old binding |
+| Corrupted files | `test_recovery.gd`: invalid nested routes/receipts/bindings handled without losing valid records |
+| Local model | Real qwen3:8b through Ollama: a new Speed Math report became ready and was cached; model absence does not block games/reports |
+| API contract | Swagger Parser and AJV2020: OpenAPI 3.1, four examples, four real run/report pairs, history, and Qwen response — PASS |
+| Standalone Windows build | Release x86_64 with embedded PCK: headless launch exit 0; native window, menu, instructions, and Fifteen Puzzle board checked |
 
-## Команды и доказательства
+## Commands and evidence
 
-Go (из `server/`):
+Go (from `server/`):
 
 ```powershell
 $env:ZUMA_GODOT_FIXTURES = 'C:\Documents\Zuma\zuma-health\.superpowers\sdd\2026-11-14-minigames\generated'
@@ -37,38 +37,38 @@ $env:CGO_ENABLED = '0'
 go build -o zuma.exe ./cmd/zuma
 ```
 
-Итог Go:108 именованных тестов/подтестов PASS,0 FAIL. У пакетов cmd/zuma и
-internal/testutil нет собственных тестовых файлов. Vet и CGO0-сборка завершились
-с кодом0, gofmt не вывел файлов.
+Go result: 108 named tests/subtests PASS, 0 FAIL. Packages cmd/zuma and
+internal/testutil have no test files of their own. Vet and the CGO0 build
+exited with code 0; gofmt listed no files.
 
-Godot4.7.2: `--headless --path <project> --script
-res://addons/zuma_minigames/tests/<suite>.gd`. Наборы: test_rules, test_module,
+Godot 4.7.2: `--headless --path <project> --script
+res://addons/zuma_minigames/tests/<suite>.gd`. Suites: test_rules, test_module,
 test_outbox, test_recovery, test_profile_ownership, test_layout.
-Для GUI использованы playtest_ui.gd и test_upload_ui.gd.
+GUI testing used playtest_ui.gd and test_upload_ui.gd.
 
-Локальные журналы, 12 исходных fixtures, снимки GUI и server-evidence.json
-сохранены в `.superpowers/sdd/2026-11-14-minigames/` (не включаются в Git).
-Повторное прохождение четырёх игр выполнено для записи пользователем;
-видеофайл агент не создавал.
+Local logs, 12 original fixtures, GUI screenshots, and server-evidence.json
+are saved in `.superpowers/sdd/2026-11-14-minigames/` (excluded from Git).
+The four games were played again for the user to record;
+the agent did not create a video file.
 
-Независимое финальное ревью выявило шесть проблем: ошибочная смена профиля,
-наследование старой привязки, повреждённые routes/receipts, просроченное
-завершение математики, null в целочисленных массивах и отсутствие пометки
-синтетических запусков. Все исправлены; добавлены проверки регрессий.
+Independent final review found six issues: incorrect profile switching,
+inheriting an old binding, corrupted routes/receipts, late Speed Math
+completion, null in integer arrays, and missing synthetic-run labels.
+All were fixed, and regression checks were added.
 
-## Запуск и ограничения
+## Startup and limitations
 
-Рабочий сервер обновлён и оставлен на `http://127.0.0.1:8080`;
-readyz=ready, qwen3:8b доступна. Перед обновлением остановленного сервера
-сохранена копия data в
+The working server was updated and left running at `http://127.0.0.1:8080`;
+readyz=ready, qwen3:8b available. Before updating the stopped server, a data
+backup was saved to
 `.superpowers/sdd/2026-11-14-minigames/working-db-backup-20261114-183427`.
 
-Windows-пакет собирается `scripts/build-minigames.ps1`. Готовые EXE и ZIP
-находятся в `builds/minigames-windows/` и не включаются в Git. Это неподписанная
-демонстрационная сборка для Windows64-bit; другие устройства команды не
-проверялись. Godot и сервер для офлайн-игр не нужны. Локальные данные сборки
-отделены от редактора каталогом `%APPDATA%/ZumaMinigames`.
+The Windows package is built with `scripts/build-minigames.ps1`. Finished EXE
+and ZIP files are in `builds/minigames-windows/` and excluded from Git.
+This is an unsigned Windows 64-bit demonstration build; the team's other
+devices were not tested. Offline games need neither Godot nor the server.
+The build's local data is separated from the editor by `%APPDATA%/ZumaMinigames`.
 
-Показатели описывают выполнение заданий, не являются диагнозом или общим
-баллом здоровья. API предназначен для локального использования; удалённый
-сервер с авторизацией и подключение к основному меню остаются вне этой задачи.
+Measures describe task performance and are neither a diagnosis nor an overall
+health score. The API is intended for local use; a remote authenticated server
+and connection to the main menu remain outside this task's scope.

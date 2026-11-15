@@ -11,22 +11,22 @@ import (
 )
 
 var labels = map[string]string{
-	"duration_ms": "Полная длительность", "moves": "Ходы", "solved": "Поле решено (1 — да)",
-	"pairs_found": "Найденные пары", "attempts": "Попытки", "errors": "Ошибки", "accuracy_percent": "Точность", "active_ms": "Время после показа карточек",
-	"shown": "Показанные примеры", "correct": "Правильные ответы", "incorrect": "Неправильные ответы", "skipped": "Пропуски", "manual_skips": "Ручные пропуски", "timeouts": "Пропуски по времени", "answered": "Принятые ответы", "mean_answer_ms": "Среднее время ответа", "median_answer_ms": "Медиана времени ответа", "correct_per_minute": "Правильные ответы в минуту",
-	"rounds": "Начатые раунды", "successful_rounds": "Успешные раунды", "failed_rounds": "Ошибочные раунды", "max_completed_count": "Максимум успешно запомненных чисел", "mean_preview_ms": "Среднее время просмотра до первого выбора", "mean_selection_ms": "Среднее время выполнения успешного раунда после первого выбора",
+	"duration_ms": "Total duration", "moves": "Moves", "solved": "Board solved (1 = yes)",
+	"pairs_found": "Pairs found", "attempts": "Attempts", "errors": "Errors", "accuracy_percent": "Accuracy", "active_ms": "Time after card preview",
+	"shown": "Questions shown", "correct": "Correct answers", "incorrect": "Incorrect answers", "skipped": "Skipped questions", "manual_skips": "Manual skips", "timeouts": "Timeouts", "answered": "Accepted answers", "mean_answer_ms": "Mean answer time", "median_answer_ms": "Median answer time", "correct_per_minute": "Correct answers per minute",
+	"rounds": "Rounds started", "successful_rounds": "Successful rounds", "failed_rounds": "Failed rounds", "max_completed_count": "Maximum successfully recalled number count", "mean_preview_ms": "Mean preview time before first selection", "mean_selection_ms": "Mean successful round time after first selection",
 }
 
 func Unit(key string) string {
 	switch key {
 	case "duration_ms", "active_ms", "mean_answer_ms", "median_answer_ms", "mean_preview_ms", "mean_selection_ms":
-		return "мс"
+		return "ms"
 	case "accuracy_percent":
 		return "%"
 	case "correct_per_minute":
-		return "ответов/мин"
+		return "answers/min"
 	default:
-		return "шт."
+		return "count"
 	}
 }
 func Calculate(r Run, b *Run) (Report, error) {
@@ -69,14 +69,17 @@ func Calculate(r Run, b *Run) (Report, error) {
 }
 func Fingerprint(r Report) string {
 	r.Explanation = nil
-	b, _ := json.Marshal(r)
+	b, _ := json.Marshal(struct {
+		Report Report        `json:"report"`
+		Facts  []domain.Fact `json:"facts"`
+	}{r, Facts(r)})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }
 func Facts(r Report) []domain.Fact {
-	facts := []domain.Fact{{ID: "run_outcome", Category: "observations", Text: fmt.Sprintf("Игра %s; сложность %s; исход %s, причина %s.", r.GameID, r.Difficulty, r.Status, r.FinishReason)}}
+	facts := []domain.Fact{{ID: "run_outcome", Category: "observations", Text: fmt.Sprintf("Game %s; difficulty %s; outcome %s, reason %s.", r.GameID, r.Difficulty, r.Status, r.FinishReason)}}
 	if domain.ValidSurvey(r.Survey) {
-		facts = append(facts, domain.Fact{ID: "survey", Category: "observations", Text: fmt.Sprintf("Сохранённый опрос: сон %.2f ч; усталость %.2f/10; стресс %.2f/10; настроение %.2f/10 (выше — лучше).", *r.Survey.SleepHours, *r.Survey.Fatigue, *r.Survey.Stress, *r.Survey.Mood)})
+		facts = append(facts, domain.Fact{ID: "survey", Category: "observations", Text: fmt.Sprintf("Saved survey: sleep %.2f h; fatigue %.2f/10; stress %.2f/10; mood %.2f/10 (higher is better).", *r.Survey.SleepHours, *r.Survey.Fatigue, *r.Survey.Stress, *r.Survey.Mood)})
 	}
 	keys := []string{}
 	for key := range r.Metrics {
@@ -93,19 +96,19 @@ func Facts(r Report) []domain.Fact {
 			if value := r.Deltas[key]; value != nil {
 				unit := Unit(key)
 				if key == "accuracy_percent" {
-					unit = "п.п."
+					unit = "pp"
 				}
-				facts = append(facts, domain.Fact{ID: "delta_" + key, Category: "comparisons", Text: fmt.Sprintf("Изменение «%s» относительно предыдущего сопоставимого прохождения: %+.2f %s.", labels[key], *value, unit)})
+				facts = append(facts, domain.Fact{ID: "delta_" + key, Category: "comparisons", Text: fmt.Sprintf("Change in %s from the previous comparable run: %+.2f %s.", labels[key], *value, unit)})
 			}
 		}
 	}
-	texts := map[string]string{"not_medical": "Игровые показатели не являются диагнозом или медицинской консультацией.", "client_timing": "Времена получены от локального клиента; сервер проверяет согласованность событий, а не подлинность измерений.", "survey_timing": "Опрос скопирован из сохранённого черновика; время его заполнения неизвестно и не обязательно совпадает со временем игры.", "synthetic": "Это синтетические демонстрационные данные.", "incomplete": "Прохождение прервано; частичные показатели не сравниваются с завершёнными.", "no_baseline": "Предыдущего сопоставимого прохождения нет; сравнение отсутствует."}
+	texts := map[string]string{"not_medical": "Task results are not a medical diagnosis.", "client_timing": "Times come from the local client; the server checks event consistency, not measurement authenticity.", "survey_timing": "The survey was copied from a saved draft; its completion time is unknown and may differ from the game time.", "synthetic": "These are synthetic demonstration data.", "incomplete": "The run was aborted; partial metrics are not compared with completed runs.", "no_baseline": "There is no previous comparable run; comparison is unavailable."}
 	for _, key := range r.Limitations {
 		facts = append(facts, domain.Fact{ID: key, Category: "limitations", Text: texts[key]})
 	}
 	for _, key := range keys {
 		if r.Metrics[key] == nil {
-			facts = append(facts, domain.Fact{ID: "missing_" + key, Category: "limitations", Text: fmt.Sprintf("%s не рассчитан: недостаточно подходящих событий.", labels[key])})
+			facts = append(facts, domain.Fact{ID: "missing_" + key, Category: "limitations", Text: fmt.Sprintf("%s is unavailable: insufficient eligible events.", labels[key])})
 		}
 	}
 	return facts

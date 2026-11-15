@@ -220,19 +220,19 @@ func next_round(t: int) -> void:
 	_record("show", t, -1, positions)
 
 func summary() -> Dictionary:
-	var data: Dictionary = {"Длительность, мс": last_time}
+	var data: Dictionary = {"Duration, ms": last_time}
 	match game_id:
-		"fifteen": data["Ходы"] = moves
+		"fifteen": data["Moves"] = moves
 		"pairs":
-			data["Найдено пар"] = pairs_found
-			data["Попытки"] = attempts
-			data["Ошибки"] = pair_errors
+			data["Pairs found"] = pairs_found
+			data["Attempts"] = attempts
+			data["Errors"] = pair_errors
 		"math":
-			data["Правильно"] = correct
-			data["Ошибки"] = incorrect
-			data["Пропуски"] = skipped
+			data["Correct"] = correct
+			data["Errors"] = incorrect
+			data["Skipped"] = skipped
 		"chimp":
-			data["Успешные раунды"] = chimp_success
-			data["Ошибки"] = chimp_errors
-			data["Максимум чисел"] = max_completed_count
+			data["Successful rounds"] = chimp_success
+			data["Errors"] = chimp_errors
+			data["Maximum numbers"] = max_completed_count
 	return data

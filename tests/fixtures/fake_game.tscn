@@ -23,7 +23,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-text = "Тестовая область игры\nРеальные задания команда ещё разрабатывает"
+text = "Game test area\nThe team is still developing the actual tasks"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -40,4 +40,4 @@ offset_right = 90.0
 offset_bottom = 99.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Тест ввода"
+text = "Input test"

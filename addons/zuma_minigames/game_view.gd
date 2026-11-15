@@ -4,12 +4,12 @@ signal run_finished(payload: Dictionary)
 signal exit_requested
 const Rules = preload("res://addons/zuma_minigames/core/rules.gd")
 const Generator = preload("res://addons/zuma_minigames/core/generator.gd")
-const TITLES: Dictionary = {"fifteen": "Пятнашки", "pairs": "Найди пару", "math": "Математика на скорость", "chimp": "Запомни числа"}
+const TITLES: Dictionary = {"fifteen": "Fifteen Puzzle", "pairs": "Find the Pair", "math": "Speed Math", "chimp": "Remember the Numbers"}
 const INSTRUCTIONS: Dictionary = {
-	"fifteen": "Соберите числа 1–15 по порядку. Нажимайте на плитку рядом с пустой клеткой. Время и ходы учитываются.",
-	"pairs": "Запомните открытые карточки. После скрытия находите пары одинаковых символов, открывая по две карточки.",
-	"math": "Выберите правильный ответ. До 20 разных примеров за 60 секунд. Ответ на границе таймера уже не принимается.",
-	"chimp": "Запомните расположение чисел. Выбирайте по возрастанию: после нажатия на 1 остальные числа скроются."
+	"fifteen": "Arrange numbers 1–15 in order. Select a tile next to the empty space. Time and moves are recorded.",
+	"pairs": "Memorize the face-up cards. Once hidden, reveal two at a time to find matching symbols.",
+	"math": "Choose the correct answer. Up to 20 different questions in 60 seconds. Answers at the time limit are not accepted.",
+	"chimp": "Memorize the numbered cells. Select them in ascending order: after selecting 1, the remaining numbers disappear."
 }
 @export_enum("fifteen", "pairs", "math", "chimp") var game_id: String = "fifteen"
 var difficulty: String = "easy"
@@ -50,7 +50,7 @@ func _ready() -> void:
 	column.add_theme_constant_override("separation", 8)
 	margin.add_child(column)
 	var heading := Label.new()
-	heading.text = TITLES[game_id] + "  /  " + {"easy": "ЛЕГКО", "normal": "ОБЫЧНО", "hard": "СЛОЖНО"}[difficulty]
+	heading.text = TITLES[game_id] + "  /  " + {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}[difficulty]
 	heading.add_theme_font_size_override("font_size", 25)
 	var heading_row := HBoxContainer.new()
 	column.add_child(heading_row)
@@ -63,12 +63,12 @@ func _ready() -> void:
 	heading_row.add_child(heading)
 	var source_label := Label.new()
 	source_label.name = "SourceLabel"
-	source_label.text = "Синтетические данные" if source == "synthetic" else "Локальное прохождение"
+	source_label.text = "Synthetic data" if source == "synthetic" else "Local run"
 	source_label.add_theme_font_size_override("font_size", 13)
 	source_label.add_theme_color_override("font_color", Color("f59e0b") if source == "synthetic" else Color("10b981"))
 	heading_row.add_child(source_label)
 	help_label = Label.new()
-	help_label.text = INSTRUCTIONS[game_id] + " Потеря фокуса прерывает попытку."
+	help_label.text = INSTRUCTIONS[game_id] + " Losing window focus interrupts the attempt."
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	help_label.add_theme_font_size_override("font_size", 15)
 	column.add_child(help_label)
@@ -102,17 +102,17 @@ func _ready() -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 12)
 	column.add_child(actions)
-	start_button = _button(actions, "Начать", _start)
+	start_button = _button(actions, "Start", _start)
 	start_button.name = "Start"
-	restart_button = _button(actions, "Заново", _restart)
-	skip_button = _button(actions, "Пропустить", _skip)
-	next_button = _button(actions, "Следующий раунд", _next_round)
-	back_button = _button(actions, "Назад", _back)
-	restart_button.tooltip_text = "Заново · R"
-	back_button.tooltip_text = "Назад · Esc"
-	skip_button.tooltip_text = "Пропустить пример"
+	restart_button = _button(actions, "Restart", _restart)
+	skip_button = _button(actions, "Skip", _skip)
+	next_button = _button(actions, "Next round", _next_round)
+	back_button = _button(actions, "Back", _back)
+	restart_button.tooltip_text = "Restart · R"
+	back_button.tooltip_text = "Back · Esc"
+	skip_button.tooltip_text = "Skip question"
 	var disclaimer := Label.new()
-	disclaimer.text = "Результаты описывают выполнение задания и не являются диагнозом."
+	disclaimer.text = "Results describe task performance and are not a diagnosis."
 	disclaimer.add_theme_font_size_override("font_size", 12)
 	disclaimer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(disclaimer)
@@ -127,10 +127,10 @@ func _ready() -> void:
 func _parameters() -> String:
 	var c: Dictionary = generator.defaults(game_id, difficulty)
 	match game_id:
-		"fifteen": return "Поле 4×4 · Перемешивание: %d ходов" % c.shuffle_moves
-		"pairs": return "%d пар · Показ %.1f с · После ошибки пауза 0,7 с" % [c.pairs, c.preview_ms / 1000.0]
-		"math": return "20 заданий · 60 секунд · На пример до %.1f с" % (c.question_limit_ms / 1000.0)
-		"chimp": return "От %d до %d чисел · Допустимо ошибок: %d" % [c.start_count, c.target_count, c.mistake_limit]
+		"fifteen": return "4×4 board · Shuffle: %d moves" % c.shuffle_moves
+		"pairs": return "%d pairs · Preview %.1f s · Mismatch pause 0.7 s" % [c.pairs, c.preview_ms / 1000.0]
+		"math": return "20 questions · 60 seconds · Up to %.1f s per question" % (c.question_limit_ms / 1000.0)
+		"chimp": return "From %d to %d numbers · Mistakes allowed: %d" % [c.start_count, c.target_count, c.mistake_limit]
 	return ""
 
 func elapsed() -> int:
@@ -163,7 +163,7 @@ func _build_grid() -> void:
 		button.add_theme_font_size_override("font_size", 22)
 		button.add_theme_font_override("font", theme.get_font("font", "TelemetryLabel"))
 		if game_id == "math":
-			button.tooltip_text = "Ответ · %d" % (index + 1)
+			button.tooltip_text = "Answer · %d" % (index + 1)
 		if game_id in ["pairs", "chimp"]:
 			button.add_theme_font_size_override("font_size", 20)
 			for state in ["normal", "hover", "pressed", "disabled"]:
@@ -179,7 +179,7 @@ func _process(_delta: float) -> void:
 		var before_question: int = session.question_index
 		session.advance(elapsed())
 		if game_id == "math" and session.question_index != before_question:
-			_feedback("Время примера вышло · переход к следующему", Color("ef4444"))
+			_feedback("Question time expired · next question", Color("ef4444"))
 		_render()
 		_finish_once()
 
@@ -192,11 +192,11 @@ func _choose(index: int) -> void:
 	session.act(index, elapsed())
 	if game_id == "math":
 		if session.correct > previous_correct:
-			_feedback("Верно · следующий пример", Color("10b981"))
+			_feedback("Correct · next question", Color("10b981"))
 		elif session.incorrect > previous_incorrect:
-			_feedback("Неверно · следующий пример", Color("ef4444"))
+			_feedback("Incorrect · next question", Color("ef4444"))
 		elif session.skipped > previous_skipped:
-			_feedback("Время примера вышло", Color("ef4444"))
+			_feedback("Question time expired", Color("ef4444"))
 	_render()
 	_finish_once()
 
@@ -204,24 +204,24 @@ func _render() -> void:
 	if session == null:
 		return
 	var t: int = session.last_time
-	stats.text = "Время: %.1f с  |  " % (t / 1000.0)
+	stats.text = "Time: %.1f s  |  " % (t / 1000.0)
 	question_label.visible = game_id == "math"
 	skip_button.visible = game_id == "math" and not session.done
 	next_button.visible = game_id == "chimp" and session.round_pending and not session.done
 	match game_id:
-		"fifteen": stats.text += "Ходы: %d" % session.moves
+		"fifteen": stats.text += "Moves: %d" % session.moves
 		"pairs":
-			stats.text += "Пары: %d/%d · Попытки: %d · Ошибки: %d" % [session.pairs_found, session.config.pairs, session.attempts, session.pair_errors]
+			stats.text += "Pairs: %d/%d · Attempts: %d · Errors: %d" % [session.pairs_found, session.config.pairs, session.attempts, session.pair_errors]
 			if t < session.config.preview_ms:
-				stats.text += " · Запоминайте: %.1f с" % ((session.config.preview_ms - t) / 1000.0)
+				stats.text += " · Memorize: %.1f s" % ((session.config.preview_ms - t) / 1000.0)
 		"math":
-			stats.text = "Осталось: %.1f с · Пример %d/20 · Верно: %d · Ошибки: %d · Пропуски: %d" % [maxf(0, (60000 - t) / 1000.0), session.question_index + 1, session.correct, session.incorrect, session.skipped]
+			stats.text = "Remaining: %.1f s · Question %d/20 · Correct: %d · Errors: %d · Skipped: %d" % [maxf(0, (60000 - t) / 1000.0), session.question_index + 1, session.correct, session.incorrect, session.skipped]
 			var q: Dictionary = session.initial.questions[session.question_index]
-			question_label.text = "%d %s %d = ?  ·  %.1f с" % [q.a, {"add": "+", "sub": "−", "mul": "×", "div": "÷"}[q.op], q.b, maxf(0, (session.deadline - t) / 1000.0)]
+			question_label.text = "%d %s %d = ?  ·  %.1f s" % [q.a, {"add": "+", "sub": "−", "mul": "×", "div": "÷"}[q.op], q.b, maxf(0, (session.deadline - t) / 1000.0)]
 		"chimp":
-			stats.text += "Чисел: %d · Успешных раундов: %d · Ошибки: %d/%d" % [session.chimp_count, session.chimp_success, session.chimp_errors, session.config.mistake_limit]
+			stats.text += "Numbers: %d · Successful rounds: %d · Errors: %d/%d" % [session.chimp_count, session.chimp_success, session.chimp_errors, session.config.mistake_limit]
 			if session.round_pending and not session.done:
-				result_label.text = "Раунд пройден. Продолжайте." if session.chimp_next == session.positions.size() else "Ошибка. Следующий раунд — с новой раскладкой."
+				result_label.text = "Round completed. Continue." if session.chimp_next == session.positions.size() else "Incorrect. The next round uses a new layout."
 	for index in range(grid.get_child_count()):
 		var button: Button = grid.get_child(index)
 		button.modulate = Color.WHITE
@@ -257,15 +257,15 @@ func _finish_once() -> void:
 	skip_button.visible = false
 	next_button.visible = false
 	feedback_label.visible = false
-	var reasons: Dictionary = {"solved": "Задача решена", "questions_done": "Все примеры пройдены", "time_limit": "Время вышло", "target_reached": "Целевой уровень достигнут", "mistake_limit": "Лимит ошибок", "user_exit": "Выход из игры", "focus_lost": "Окно потеряло фокус", "host_removed": "Модуль закрыт", "recording_limit": "Достигнут предел записи"}
-	result_label.text = {"completed": "Завершено", "failed": "Игра окончена", "aborted": "Попытка прервана"}[session.result.status] + " · " + reasons.get(session.result.finish_reason, "") + "\n"
+	var reasons: Dictionary = {"solved": "Puzzle solved", "questions_done": "All questions completed", "time_limit": "Time is up", "target_reached": "Target level reached", "mistake_limit": "Mistake limit reached", "user_exit": "Left the game", "focus_lost": "Window lost focus", "host_removed": "Module closed", "recording_limit": "Recording limit reached"}
+	result_label.text = {"completed": "Completed", "failed": "Game over", "aborted": "Attempt interrupted"}[session.result.status] + " · " + reasons.get(session.result.finish_reason, "") + "\n"
 	var parts: PackedStringArray = []
 	for key in session.summary():
 		parts.append("%s: %s" % [key, session.summary()[key]])
 	result_label.text += " · ".join(parts)
 	run_finished.emit(session.result.duplicate(true))
 	if session.result.finish_reason == "focus_lost":
-		interruption_message.text = "Попытка прервана — Окно потеряло фокус\nДлительность: %d мс" % session.result.duration_ms
+		interruption_message.text = "Attempt interrupted — Window lost focus\nDuration: %d ms" % session.result.duration_ms
 		interruption_overlay.visible = true
 		game_actions.visible = false
 		interruption_overlay.find_child("ResumeRestart", true, false).grab_focus()
@@ -283,7 +283,7 @@ func _restart() -> void:
 
 func _skip() -> void:
 	session.skip(elapsed())
-	_feedback("Пример пропущен · следующий пример", Color("f59e0b"))
+	_feedback("Question skipped · next question", Color("f59e0b"))
 	_render()
 	_finish_once()
 
@@ -348,11 +348,11 @@ func _build_interruption_overlay() -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 16)
 	column.add_child(actions)
-	var restart := _button(actions, "Заново", _restart)
+	var restart := _button(actions, "Restart", _restart)
 	restart.name = "ResumeRestart"
-	_button(actions, "Назад", _back)
+	_button(actions, "Back", _back)
 	var note := Label.new()
-	note.text = "Результаты описывают выполнение задания и не являются диагнозом."
+	note.text = "Results describe task performance and are not a diagnosis."
 	note.add_theme_font_size_override("font_size", 12)
 	column.add_child(note)
 	interruption_overlay.visible = false

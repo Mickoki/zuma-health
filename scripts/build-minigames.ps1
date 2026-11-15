@@ -52,16 +52,16 @@ if ($LASTEXITCODE -ne 0) { throw "Godot export failed: $LASTEXITCODE" }
 @'
 Zuma Minigames — Windows 64-bit
 
-Запустите ZumaMinigames.exe. Установка Godot, сервера и модели не требуется.
-Выберите игру и сложность, прочитайте инструкцию и нажмите «Начать».
-Доступны пятнашки, найди пару, математика на скорость и запоминание чисел.
-Для офлайн-игры оставьте «Без серверного профиля»; серверные кнопки необязательны.
-При потере фокуса окна попытка прерывается. Для новой попытки нажмите «Заново».
-Локальные результаты: %APPDATA%\ZumaMinigames.
-Для записи видео сначала включите рекордер, затем вернитесь в окно игры.
+Run ZumaMinigames.exe. Godot, the server, and the model are not required.
+Choose a game and difficulty, read the instructions, then select Start.
+Games: Fifteen Puzzle, Find the Pair, Speed Math, Remember the Numbers.
+For offline play, leave No server profile selected; server controls are optional.
+Losing window focus interrupts the attempt. Select Restart for a new attempt.
+Local results: %APPDATA%\ZumaMinigames.
+For screen recording, start the recorder first, then return to the game window.
 
-Сборка не подписана цифровым сертификатом. Это локальная демонстрационная версия.
-Движок Godot распространяется по лицензии MIT; см. GODOT-LICENSE.txt.
+This is an unsigned local demonstration build.
+Godot is distributed under the MIT license; see GODOT-LICENSE.txt.
 '@ | Set-Content -LiteralPath "$package/READ-ME.txt" -Encoding utf8
 $godotLicense = Join-Path (Split-Path $Godot -Parent) 'LICENSE.txt'
 if (!(Test-Path -LiteralPath $godotLicense)) { throw 'Godot LICENSE.txt is required next to the editor.' }

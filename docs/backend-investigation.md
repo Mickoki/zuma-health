@@ -1,54 +1,56 @@
-# Backend: проверенные исходные условия
+# Backend: verified starting conditions
 
-Дата: 2026-11-14.
+Date: 2026-11-14.
 
-## Задача команды
+## Team task
 
-Сервер на Go принимает опросы и результаты игр из Godot, хранит данные,
-рассчитывает показатели и формирует отчёт. Локальная Qwen3 8B через Ollama
-объясняет рассчитанные результаты. Интеграция часов исключена пользователем.
-Основной сценарий должен работать при недоступности модели и без интернета.
+The Go server accepts surveys and game results from Godot, stores data,
+calculates measures, and produces a report. Local Qwen3 8B through Ollama
+explains the calculated results. The user excluded watch integration.
+The main workflow must work without internet access and when the model is unavailable.
 
-## Состояние репозитория
+## Repository state
 
-На момент проверки в main были только README.md, PLAN.md, project.godot и
-export_presets.cfg. Серверного кода, схемы данных и контракта API нет.
-README.md и PLAN.md упоминают часы; эти сведения устарели относительно
-решения пользователя. Указанная в project.godot стартовая сцена отсутствует.
+At the time of inspection, main contained only README.md, PLAN.md, project.godot,
+and export_presets.cfg. There was no server code, data schema, or API contract.
+README.md and PLAN.md mentioned watches; that information was outdated relative
+to the user's decision. The startup scene referenced in project.godot was missing.
 
-## Проверка окружения
+## Environment check
 
 - `go version`: `go1.27.3 windows/amd64`.
-- `GET http://127.0.0.1:11434/api/version`: версия Ollama `0.40.16`.
-- `ollama list`: модель `qwen3:8b`, ID `b54de8fcfb8c`, размер 5.2 GB.
-- Генерация текста моделью пока не проверена.
+- `GET http://127.0.0.1:11434/api/version`: Ollama version `0.40.16`.
+- `ollama list`: model `qwen3:8b`, ID `b54de8fcfb8c`, size 5.2 GB.
+- Model text generation had not yet been tested.
 
-## Протокол и зависимости
+## Protocol and dependencies
 
-Официальная документация Ollama описывает `POST /api/chat` с полями
-`model`, `messages`, `stream`, `format` и `think`. Для обычного JSON-ответа
-нужно явно передать `stream: false`; содержимое ответа находится в
-`message.content`. Поле `format` позволяет передать JSON Schema, но ответ
-всё равно нужно проверять в Go. Структура JSON сама по себе не доказывает
-фактическую достоверность текста модели.
+Official Ollama documentation describes `POST /api/chat` with the fields
+`model`, `messages`, `stream`, `format`, and `think`. A regular JSON response
+requires explicitly setting `stream: false`; response content is in
+`message.content`. The `format` field accepts a JSON Schema, but the response
+must still be validated in Go. JSON structure alone does not establish the
+factual accuracy of model text.
 
-Драйвер `modernc.org/sqlite` реализован на Go и не требует cgo. Это позволяет
-рассмотреть сборку Windows-сервера без отдельного C-компилятора и установки
-сервера СУБД. Версия зависимости и её сборка ещё не проверены.
+The `modernc.org/sqlite` driver is implemented in Go and does not require cgo.
+This makes it possible to consider building the Windows server without a
+separate C compiler or database server installation. The dependency version
+and its build had not yet been checked.
 
-Источники:
+Sources:
 
 - https://docs.ollama.com/api/chat
 - https://docs.ollama.com/capabilities/structured-outputs
 - https://pkg.go.dev/modernc.org/sqlite
 
-## Открытое решение
+## Design decision
 
-Пользователь выбрал единый Go-сервер с SQLite и HTTP-подключением к Ollama.
-Проект спецификации: `superpowers/specs/2026-11-14-backend-design.md`.
-Спецификация утверждена пользователем; выполнена реализация в `server/`.
-Актуальные доказательства: `../server/docs/verification.md`.
+The user chose a single Go server with SQLite and an HTTP connection to Ollama.
+Draft specification: `superpowers/specs/2026-11-14-backend-design.md`.
+The user approved the specification; implementation was completed in `server/`.
+Current evidence: `../server/docs/verification.md`.
 
-При публикации backend в отдельной ветке получены изменения main до 210991e:
-команда добавила стартовую сцену и скрипт меню. Первоначальное описание
-отсутствия сцен выше относится к состоянию на момент исследования.
+When publishing the backend in a separate branch, main changes through 210991e
+were incorporated: the team added the startup scene and menu script. The
+initial description of missing scenes above refers to the state at the time
+of investigation.

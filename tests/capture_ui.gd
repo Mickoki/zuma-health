@@ -14,12 +14,12 @@ func capture() -> void:
 	var page := OS.get_environment("ZUMA_CAPTURE_PAGE")
 	var warning_test_file := ""
 	if mock_api.is_empty():
-		app.set_connection_status("Сервер недоступен • запустите Go API")
+		app.set_connection_status("Server unavailable • start the Go API")
 	if page in ["survey", "game"]:
-		app.profiles = [{"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Участник экипажа"}]
+		app.profiles = [{"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Crew member"}]
 		app.selected_profile = app.profiles[0]
 		app.profile_picker.clear()
-		app.profile_picker.add_item("Участник экипажа")
+		app.profile_picker.add_item("Crew member")
 		app.show_survey()
 		if page == "game":
 			app.game_scene_paths = {"reaction": "res://tests/fixtures/fake_game.tscn", "memory": "res://tests/fixtures/fake_game.tscn"}

@@ -12,7 +12,7 @@ func capture() -> void:
 	app.queue_path = "user://capture-sessions"
 	root.add_child(app)
 	await create_timer(0.3).timeout
-	app.selected_profile = {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Тестовый участник"}
+	app.selected_profile = {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "display_name": "Test participant"}
 	app.drafts[app.selected_profile.id] = {"sleep_hours": 8.0, "fatigue": 0.0, "stress": 2.0, "mood": 7.0}
 	app.show_minigames()
 	var host = app.minigames_host

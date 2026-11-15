@@ -15,7 +15,7 @@ func TestPrintGameDesign(t *testing.T) {
 	body, _ := json.Marshal(testutil.GameInput("math"))
 	run := decode[games.Run](t, request(r.h, "POST", "/api/v1/profiles/"+r.p.ID+"/game-runs", string(body)), 201)
 	html := request(r.h, "GET", "/api/v1/game-runs/"+run.ID+"/report.html", "")
-	for _, required := range []string{"@page", "A4", "<table", "<th", "Динамика", "Показатели заданий не являются медицинским диагнозом.", "Математика", "Синтетические данные"} {
+	for _, required := range []string{"@page", "A4", "<table", "<th", "Change", "Task results are not a medical diagnosis.", "Math", "Synthetic data"} {
 		if !strings.Contains(html.Body.String(), required) {
 			t.Errorf("missing print element %q", required)
 		}
@@ -36,7 +36,7 @@ func TestPrintAccuracyDeltaUnit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdhtml.UnescapeString(html.String()), "+25.00 п.п.") {
+	if !strings.Contains(stdhtml.UnescapeString(html.String()), "+25.00 pp") {
 		t.Fatal("accuracy delta must be labeled in percentage points")
 	}
 }

@@ -1,73 +1,74 @@
-# Проверка редизайна Stitch — 15 ноября 2026
+# Stitch redesign verification — November 15, 2026
 
-Основа: финальная `codex/integrate-minigames`, commit `0e2f491`.
-Рабочая ветка редизайна: `codex/stitch-redesign`.
-Макеты: Stitch `projects/1979484546281567767`, проект
-ZUMA Aerospace Cognitive Telemetry UI. Получены семь дизайн-экранов и один
-HTML-прототип. Экспортные ссылки и исходные превью хранятся локально в
-игнорируемом `.godot/redesign`; ключ находится только в пользовательском
-конфиге Codex и исходном пользовательском вложении.
+Baseline: final `codex/integrate-minigames`, commit `0e2f491`.
+Redesign working branch: `codex/stitch-redesign`.
+Mockups: Stitch `projects/1979484546281567767`, project
+ZUMA Aerospace Cognitive Telemetry UI. Seven design screens and one HTML
+prototype were retrieved. Export links and original previews are stored locally
+in ignored `.godot/redesign`; the key exists only in the user's Codex
+configuration and the original user attachment.
 
-## Что изменено
+## Changes
 
-- Прозрачные тёмные карточки, циановый акцент, боковая навигация, векторные
-  иконки. Опрос, обзор, профили, история, динамика и справка сохранены.
-- Лёгкий canvas_item shader: звёзды, атмосферный горизонт Земли, мягкое
-  движение облачных полос. Нет текстурных загрузок и тяжёлой 3D-сцены.
-- Публичная тема `theme/zuma_theme.tres` и самодостаточные ресурсы addon.
-  Системные шрифты с fallback; моноширинные таймеры и счётчики.
-- В четырёх игровых сценах: R/Esc, ответы1–4, обратная связь математики,
-  красное несовпадение пар, янтарная/зелёная маркировка источника, постоянный
-  дисклеймер и единый оверлей прерывания. Игровые правила не изменены.
-- Печатные отчёты: встроенный offline CSS для A4, таблицы показателей и
-  сравнений, явные единицы дельт, профиль/ID/дата/источник, проверенные факты
-  модели и рамка с ограничением. Отчёт одной игры не выдумывает данные других.
-- Исправлены два ранее воспроизведённых дефекта тестовых сценариев:
-  копирование addon/assets/theme во временный экспортный проект и ожидание
-  предпросмотра пар по тем же монотонным часам, что использует игра.
+- Translucent dark cards, cyan accent, sidebar navigation, vector icons.
+  The survey, Overview, profiles, History, Trends, and Help are preserved.
+- Lightweight canvas_item shader: stars, Earth's atmospheric horizon, gentle
+  cloud-band movement. No texture downloads or heavy 3D scene.
+- Public theme `theme/zuma_theme.tres` and self-contained addon resources.
+  System fonts with fallbacks; monospaced timers and counters.
+- In the four game scenes: R/Esc, answers 1–4, Speed Math feedback, red pair
+  mismatch, amber/green source labels, persistent disclaimer, and a shared
+  interruption overlay. Game rules are unchanged.
+- Print reports: embedded offline A4 CSS, measures and comparison tables,
+  explicit delta units, profile/ID/date/source, validated model facts, and
+  a boxed limitation. A single-game report does not invent other games' data.
+- Fixed two previously reproduced test-scenario defects: copying addon/assets/theme
+  into the temporary export project and waiting for the pair preview using
+  the same monotonic clock as the game.
 
-## Проверки
+## Checks
 
-- `server`: `go test -count=1 ./...`, `go vet ./...`, gofmt и Windows CGO0 build.
-- Семь addon-наборов: rules, module, outbox, recovery, profile_ownership,
-  layout, redesign. Новые проверки сначала воспроизвели отсутствие оверлея и
-  клавиатуры, затем ошибку ввода в скрытую сцену; после исправления прошли.
-- Одиннадцать клиентских сценариев `tests/run_client_integration.py`:
-  опрос/очередь/переходы/профили/история/обзор/графики/справка — PASS.
-- Реальный Go/SQLite: завершение всех четырёх игр, опрос, отправка, история,
-  отчёты, сравнение двух прохождений pairs — PASS на временной базе.
-- Реальная локальная qwen3:8b: синтетическая игра с опросом, обязательные
-  ограничения и кешированное объяснение — PASS.
-- Четыре сложные игры пройдены через GUI mouse events в960×540;
-  финальный журнал без SCRIPT ERROR/ERROR. Графические сценарии запускались
-  последовательно: другое окно может закономерно вызвать focus_lost.
-- `tests/capture_stitch.gd`:48 реальных снимков интерфейса при960×540,
-  1280×720,1920×1080; проверены границы кнопок сложных игровых полей.
-  Снимки просмотрены, устранено наложение двух дисклеймеров в компактном окне.
-- Addon перенесён в отдельный минимальный проект; rules/module/layout/redesign
-  прошли без ресурсов основного приложения.
-- Экспортный тест динамически загружаемых сцен — PASS. Экспорт Windows-клиента
-  и headless smoke EXE — PASS. HTML-отчёт просмотрен в браузере.
-- Независимое ревью выявило скрытый клавиатурный ввод, закрытый старым фоном
-  shader в демо и неоднозначную единицу изменения точности. Все исправлены;
-  дельта точности обозначена в процентных пунктах, null остаётся прочерком.
+- `server`: `go test -count=1 ./...`, `go vet ./...`, gofmt, and Windows CGO0 build.
+- Seven addon suites: rules, module, outbox, recovery, profile_ownership,
+  layout, redesign. New checks first reproduced missing overlay and keyboard
+  support, then input to a hidden scene; they passed after the fixes.
+- Eleven client scenarios in `tests/run_client_integration.py`:
+  survey/queue/navigation/profiles/history/Overview/charts/Help — PASS.
+- Real Go/SQLite: completing all four games, survey, submission, history,
+  reports, and comparison of two pairs runs — PASS on a temporary database.
+- Real local qwen3:8b: synthetic game with survey, required limitations,
+  and cached explanation — PASS.
+- Four Hard games completed through GUI mouse events at 960×540;
+  final log contained no SCRIPT ERROR/ERROR. Graphical scenarios ran
+  sequentially: another window can legitimately cause focus_lost.
+- `tests/capture_stitch.gd`: 48 actual interface screenshots at 960×540,
+  1280×720, 1920×1080; checked button bounds on Hard game boards.
+  Screenshots reviewed; overlapping disclaimers in the compact window fixed.
+- Addon copied into a separate minimal project; rules/module/layout/redesign
+  passed without resources from the main application.
+- Dynamically loaded scene export test — PASS. Windows client export and
+  headless EXE smoke test — PASS. HTML report reviewed in a browser.
+- Independent review found hidden keyboard input, the demo shader covered by
+  the old background, and an ambiguous accuracy-change unit. All fixed;
+  accuracy delta is labeled in percentage points, null remains a dash.
 
-Команды запуска проверок приведены в README и addon README. Журналы и снимки —
-`.godot/redesign/` (в Git не включены). Тестовые данные синтетические.
+Check commands are in README and the addon README. Logs and screenshots:
+`.godot/redesign/` (excluded from Git). Test data is synthetic.
 
-## Ограничения и решения
+## Limitations and decisions
 
-Сохранена действующая архитектура финальной версии: профиль и сохранённый
-опрос нужны перед игрой в основном приложении; автономное addon-демо доступно
-без профиля. Старый список50 снимков описывает состояния, не50 независимых
-копий игровых сцен. Оформление расширено на новые страницы финального клиента.
+The final version's existing architecture is preserved: a profile and saved
+survey are required before playing in the main application; the standalone
+addon demo works without a profile. The old list of 50 screenshots describes
+states rather than 50 independent copies of game scenes. Styling was extended
+to the final client's new pages.
 
-Декоративные пульс, общий процент когнитивной нагрузки, фиктивные аппаратные
-показатели и неверные тайминги из макетов не добавлялись. Нет диагноза/общего
-балла здоровья. API и SQLite-контракты не менялись.
+Decorative pulse, overall cognitive-load percentage, fictional hardware
+measures, and incorrect timings from the mockups were not added. There is no
+diagnosis/overall health score. API and SQLite contracts were unchanged.
 
-Windows-сборка не подписана сертификатом. На других компьютерах и физических
-мобильных устройствах не проверялась. Установленные системные шрифты могут
-различаться. MCP внесён в пользовательский config.toml; после перезапуска
-Codex инструменты Stitch будут доступны обычным способом. В текущей сессии
-макеты получены через тот же MCP-протокол напрямую.
+The Windows build is not certificate-signed. Other computers and physical
+mobile devices were not tested. Installed system fonts may differ.
+MCP was added to the user's config.toml; Stitch tools will become available
+normally after restarting Codex. In the current session, mockups were retrieved
+directly through the same MCP protocol.

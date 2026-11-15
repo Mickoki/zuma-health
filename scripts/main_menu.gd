@@ -16,12 +16,12 @@ const SurveyChart = preload("res://scripts/survey_chart.gd")
 const TrendReportLoader = preload("res://scripts/trend_report_loader.gd")
 const MinigamesHost = preload("res://scripts/minigames_host.gd")
 const TREND_METRICS := [
-	{"key": "sleep_hours", "name": "Сон", "unit": "ч", "max": 24.0, "hint": "Часы сна, указанные в опросе."},
-	{"key": "fatigue", "name": "Усталость", "unit": "/10", "max": 10.0, "hint": "Чем выше значение, тем больше усталость."},
-	{"key": "stress", "name": "Стресс", "unit": "/10", "max": 10.0, "hint": "Чем выше значение, тем больше стресс."},
-	{"key": "mood", "name": "Настроение", "unit": "/10", "max": 10.0, "hint": "Чем выше значение, тем лучше настроение."},
-	{"key": "memory_percent", "name": "Память", "unit": "%", "max": 100.0, "kind": "report", "hint": "Доля правильных ответов, рассчитанная сервером."},
-	{"key": "reaction_median_ms", "name": "Реакция", "unit": "мс", "max": 10000.0, "kind": "report", "hint": "Медиана действительных попыток, рассчитанная сервером."}
+	{"key": "sleep_hours", "name": "Sleep", "unit": "h", "max": 24.0, "hint": "Hours of sleep reported in the survey."},
+	{"key": "fatigue", "name": "Fatigue", "unit": "/10", "max": 10.0, "hint": "Higher values mean more fatigue."},
+	{"key": "stress", "name": "Stress", "unit": "/10", "max": 10.0, "hint": "Higher values mean more stress."},
+	{"key": "mood", "name": "Mood", "unit": "/10", "max": 10.0, "hint": "Higher values mean better mood."},
+	{"key": "memory_percent", "name": "Memory", "unit": "%", "max": 100.0, "kind": "report", "hint": "Percentage of correct answers calculated by the server."},
+	{"key": "reaction_median_ms", "name": "Reaction", "unit": "ms", "max": 10000.0, "kind": "report", "hint": "Median of valid trials calculated by the server."}
 ]
 
 var api_url := API
@@ -80,6 +80,7 @@ var trend_load_revision := 0
 var minigames_host: Control
 
 func _ready() -> void:
+	TranslationServer.set_locale("en")
 	theme = preload("res://theme/zuma_theme.tres")
 	session_queue = SessionQueue.new()
 	session_queue.api_url = api_url
@@ -143,7 +144,7 @@ func build_shell() -> void:
 	var brand := label("ZUMA / MISSION HEALTH", 21, ACCENT)
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(brand)
-	status_label = label("Проверяем сервер…", 14, MUTED)
+	status_label = label("Checking server…", 14, MUTED)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	status_label.clip_text = true
 	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -160,20 +161,21 @@ func build_shell() -> void:
 	sidebar.custom_minimum_size.x = 172
 	body.add_child(sidebar)
 	var nav := VBoxContainer.new()
-	nav.add_theme_constant_override("separation", 8)
+	nav.add_theme_constant_override("separation", 6)
 	sidebar.add_child(nav)
-	nav.add_child(label("ПОЛЁТНАЯ ПАЛУБА", 12, MUTED))
-	navigation_buttons = {"home": button("Обзор", show_home), "survey": button("Самочувствие", show_survey), "games": button("Игры", show_minigames), "history": button("История", show_history), "trends": button("Динамика", show_trends), "help": button("Справка", show_help)}
+	nav.add_child(label("FLIGHT DECK", 12, MUTED))
+	navigation_buttons = {"home": button("Overview", show_home), "survey": button("Wellbeing", show_survey), "games": button("Games", show_minigames), "history": button("History", show_history), "trends": button("Trends", show_trends), "help": button("Help", show_help)}
 	for nav_button in navigation_buttons.values():
+		nav_button.custom_minimum_size.y = 40
 		nav.add_child(nav_button)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nav.add_child(spacer)
-	nav.add_child(label("ЛОКАЛЬНОЕ\nПРИЛОЖЕНИЕ", 12, MUTED))
-	nav.add_child(button("Выход", func(): get_tree().quit()))
+	nav.add_child(label("LOCAL\nAPPLICATION", 12, MUTED))
+	nav.add_child(button("Exit", func(): get_tree().quit()))
 	profile_picker = OptionButton.new()
 	profile_picker.custom_minimum_size = Vector2(210, 44)
-	profile_picker.add_item("Нет профиля")
+	profile_picker.add_item("No profile")
 	profile_picker.item_selected.connect(select_profile)
 	header.add_child(profile_picker)
 	content_scroll = ScrollContainer.new()
@@ -185,7 +187,7 @@ func build_shell() -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 16)
 	content_scroll.add_child(content)
-	root_column.add_child(label("Показатели заданий не являются медицинским диагнозом.", 13, MUTED))
+	root_column.add_child(label("Task results are not a medical diagnosis.", 13, MUTED))
 
 func clear_content(page: String) -> void:
 	if current_page == "trends":
@@ -241,59 +243,59 @@ func card() -> VBoxContainer:
 
 func show_home() -> void:
 	clear_content("home")
-	content.add_child(label("Ваше самочувствие в миссии", 34))
-	content.add_child(label("Небольшие регулярные проверки помогают замечать изменения со временем.", 17, MUTED))
+	content.add_child(label("Your wellbeing during the mission", 34))
+	content.add_child(label("Small, regular check-ins help reveal changes over time.", 17, MUTED))
 	home_queue_warning = VBoxContainer.new()
 	home_queue_warning.add_theme_constant_override("separation", 8)
 	content.add_child(home_queue_warning)
 	if not selected_profile.is_empty():
 		var latest := card()
-		latest.add_child(label("ПРЕЖНИЙ ФОРМАТ ПРОВЕРКИ  /  " + str(selected_profile.display_name), 14, ACCENT))
+		latest.add_child(label("LEGACY CHECK-IN  /  " + str(selected_profile.display_name), 14, ACCENT))
 		home_latest_section = VBoxContainer.new()
 		home_latest_section.add_theme_constant_override("separation", 10)
 		latest.add_child(home_latest_section)
 		var game_latest := card()
-		game_latest.add_child(label("ПОСЛЕДНЯЯ ИГРА  /  " + str(selected_profile.display_name), 14, ACCENT))
+		game_latest.add_child(label("LATEST GAME  /  " + str(selected_profile.display_name), 14, ACCENT))
 		home_game_latest_section = VBoxContainer.new()
 		game_latest.add_child(home_game_latest_section)
 	var intro := card()
-	intro.add_child(label("01  /  ПРОФИЛЬ ЭКИПАЖА", 14, ACCENT))
-	intro.add_child(label("Выберите профиль вверху или создайте новый", 21))
+	intro.add_child(label("01  /  CREW PROFILE", 14, ACCENT))
+	intro.add_child(label("Select a profile above or create a new one", 21))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	intro.add_child(row)
 	var name_input := LineEdit.new()
-	name_input.placeholder_text = "Имя участника"
+	name_input.placeholder_text = "Crew member name"
 	name_input.max_length = 100
 	name_input.custom_minimum_size = Vector2(260, 44)
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_input)
-	row.add_child(button("Создать профиль", func() -> void: create_profile(name_input.text), true))
-	intro.add_child(button("Обновить подключение и список профилей", func() -> void: refresh_profiles(selected_profile.get("id", ""))))
+	row.add_child(button("Create profile", func() -> void: create_profile(name_input.text), true))
+	intro.add_child(button("Refresh connection and profiles", func() -> void: refresh_profiles(selected_profile.get("id", ""))))
 	var next := card()
-	next.add_child(label("02  /  ЕЖЕДНЕВНАЯ ПРОВЕРКА", 14, ACCENT))
-	next.add_child(label("Самочувствие → игровые задания → отчёт", 21))
-	next.add_child(button("Перейти к мини-играм", show_minigames, true))
+	next.add_child(label("02  /  DAILY CHECK-IN", 14, ACCENT))
+	next.add_child(label("Wellbeing → game tasks → report", 21))
+	next.add_child(button("Go to mini-games", show_minigames, true))
 	var storage_result := label("", 14, MUTED)
-	next.add_child(button("Проверить локальное сохранение", func():
+	next.add_child(button("Check local storage", func():
 		var file := FileAccess.open("user://setup_check.json", FileAccess.WRITE)
 		if file == null:
-			storage_result.text = "Ошибка сохранения: %d" % FileAccess.get_open_error()
+			storage_result.text = "Save error: %d" % FileAccess.get_open_error()
 			return
 		file.store_string(JSON.stringify({"setup": "ok", "time": Time.get_datetime_string_from_system(true)}))
 		file.flush()
 		var error := file.get_error()
 		file.close()
-		storage_result.text = "Запись сохранена: setup_check.json" if error == OK else "Ошибка сохранения: %d" % error
+		storage_result.text = "Record saved: setup_check.json" if error == OK else "Save error: %d" % error
 	))
 	next.add_child(storage_result)
-	next.add_child(label("Сохраните опрос и выберите игру. Копия опроса будет прикреплена к каждому новому прохождению.", 16, MUTED))
-	next.add_child(button("Заполнить опрос  →", show_survey, true))
+	next.add_child(label("Save the survey and choose a game. A copy of the survey will be attached to each new run.", 16, MUTED))
+	next.add_child(button("Complete survey  →", show_survey, true))
 	var history := card()
-	history.add_child(label("03  /  ИСТОРИЯ МИССИИ", 14, ACCENT))
-	history.add_child(label("Просматривайте прохождения игр и прежние проверки выбранного профиля.", 16, MUTED))
-	history.add_child(button("Открыть историю игр", show_minigames))
-	history.add_child(button("История прежних проверок", show_history))
+	history.add_child(label("03  /  MISSION HISTORY", 14, ACCENT))
+	history.add_child(label("View game runs and legacy check-ins for the selected profile.", 16, MUTED))
+	history.add_child(button("Open game history", show_minigames))
+	history.add_child(button("Legacy check-in history", show_history))
 	home_pending_section = VBoxContainer.new()
 	home_pending_section.add_theme_constant_override("separation", 12)
 	history.add_child(home_pending_section)
@@ -313,7 +315,7 @@ func refresh_home_game_latest() -> void:
 	for child in section.get_children():
 		section.remove_child(child)
 		child.queue_free()
-	section.add_child(label("Загружаем прохождение…", 16, MUTED))
+	section.add_child(label("Loading game run…", 16, MUTED))
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/profiles/%s/game-runs?limit=1&offset=0" % profile_id)
 	if page_revision != page or home_game_latest_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(section):
 		return
@@ -321,19 +323,19 @@ func refresh_home_game_latest() -> void:
 		section.remove_child(child)
 		child.queue_free()
 	if not response.ok:
-		section.add_child(label("Не удалось загрузить игровые прохождения.", 16, MUTED))
-		section.add_child(button("Повторить загрузку игр", refresh_home_game_latest))
+		section.add_child(label("Could not load game runs.", 16, MUTED))
+		section.add_child(button("Reload games", refresh_home_game_latest))
 		return
 	if not response.data.get("items") is Array or response.data.items.is_empty():
-		section.add_child(label("Пока нет отправленных игр. Локальные результаты доступны в разделе «Игры».", 16, MUTED))
+		section.add_child(label("No uploaded games yet. Local results are available under Games.", 16, MUTED))
 		return
 	var run: Dictionary = response.data.items[0]
-	var names := {"fifteen": "Пятнашки", "pairs": "Найди пару", "math": "Математика", "chimp": "Запомни числа"}
-	section.add_child(label("%s • %s • %s" % [names.get(run.get("game_id", ""), "Игра"), str(run.get("performed_at", "")).replace("T", " ").replace("Z", " UTC"), "Демонстрационные данные" if run.get("source") == "synthetic" else "Результат игры"], 16, MUTED))
-	section.add_child(label("Исход: " + {"completed": "завершено", "failed": "лимит ошибок", "aborted": "прервано"}.get(run.get("status", ""), "неизвестен"), 16, MUTED))
+	var names := {"fifteen": "Fifteen Puzzle", "pairs": "Find the Pair", "math": "Speed Math", "chimp": "Remember the Numbers"}
+	section.add_child(label("%s • %s • %s" % [names.get(run.get("game_id", ""), "Game"), str(run.get("performed_at", "")).replace("T", " ").replace("Z", " UTC"), "Demonstration data" if run.get("source") == "synthetic" else "Game result"], 16, MUTED))
+	section.add_child(label("Outcome: " + {"completed": "completed", "failed": "mistake limit", "aborted": "interrupted"}.get(run.get("status", ""), "unknown"), 16, MUTED))
 	var run_id: String = run.get("id", "")
 	if not run_id.is_empty():
-		section.add_child(button("Открыть отчёт последней игры ↗", func() -> void: OS.shell_open(api_url + "/api/v1/game-runs/" + run_id + "/report.html")))
+		section.add_child(button("Open latest game report ↗", func() -> void: OS.shell_open(api_url + "/api/v1/game-runs/" + run_id + "/report.html")))
 
 func refresh_home_latest() -> void:
 	if current_page != "home" or selected_profile.is_empty() or not is_instance_valid(home_latest_section):
@@ -346,7 +348,7 @@ func refresh_home_latest() -> void:
 	for child in section.get_children():
 		section.remove_child(child)
 		child.queue_free()
-	section.add_child(label("Загружаем последнюю проверку…", 16, MUTED))
+	section.add_child(label("Loading latest check-in…", 16, MUTED))
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/profiles/%s/sessions?limit=1&offset=0" % profile_id)
 	if page_revision != page or home_latest_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(section):
 		return
@@ -354,21 +356,21 @@ func refresh_home_latest() -> void:
 		section.remove_child(child)
 		child.queue_free()
 	if not response.ok:
-		section.add_child(label("Не удалось загрузить последнюю проверку.", 16, MUTED))
-		section.add_child(button("Повторить загрузку", refresh_home_latest))
+		section.add_child(label("Could not load the latest check-in.", 16, MUTED))
+		section.add_child(button("Reload", refresh_home_latest))
 		return
 	if response.data.items.is_empty():
-		section.add_child(label("Пока нет сохранённых проверок этого профиля.", 16, MUTED))
+		section.add_child(label("There are no saved check-ins for this profile yet.", 16, MUTED))
 		return
 	var session: Dictionary = response.data.items[0]
 	section.add_child(label(str(session.performed_at).replace("T", " ").replace("Z", " UTC"), 19))
-	section.add_child(label("Демонстрационные данные" if session.source == "synthetic" else "Результат проверки", 14, MUTED))
+	section.add_child(label("Demonstration data" if session.source == "synthetic" else "Check-in result", 14, MUTED))
 	var survey: Dictionary = session.survey
 	var memory: Dictionary = session.memory
-	section.add_child(label("Сон: %s ч  •  Усталость: %s/10  •  Стресс: %s/10  •  Настроение: %s/10" % [survey.sleep_hours, survey.fatigue, survey.stress, survey.mood], 16, MUTED))
-	section.add_child(label("Память: %d из %d ответов верные" % [int(memory.correct), int(memory.total)], 16, MUTED))
+	section.add_child(label("Sleep: %s h  •  Fatigue: %s/10  •  Stress: %s/10  •  Mood: %s/10" % [survey.sleep_hours, survey.fatigue, survey.stress, survey.mood], 16, MUTED))
+	section.add_child(label("Memory: %d of %d answers correct" % [int(memory.correct), int(memory.total)], 16, MUTED))
 	var session_id: String = session.id
-	section.add_child(button("Открыть отчёт последней проверки", func() -> void: report_trail.clear(); show_report(session_id)))
+	section.add_child(button("Open latest check-in report", func() -> void: report_trail.clear(); show_report(session_id)))
 
 func refresh_home_pending() -> void:
 	if current_page != "home" or not is_instance_valid(home_pending_section):
@@ -382,50 +384,50 @@ func refresh_home_pending() -> void:
 	var profile_id: String = selected_profile.get("id", "")
 	var audit: Dictionary = session_queue.inspect_queue(profile_id)
 	if audit.directory_error or audit.problem_count > 0:
-		var warning := "Не удалось открыть папку локальной очереди." if audit.directory_error else "Некоторые файлы очереди не удалось проверить: %d." % audit.problem_count
-		home_queue_warning.add_child(label(warning + " Файлы не изменены; сохраните копию папки и обратитесь к команде.", 16, Color("ffbf8a")))
+		var warning := "Could not open the local queue folder." if audit.directory_error else "Some queue files could not be verified: %d." % audit.problem_count
+		home_queue_warning.add_child(label(warning + " Files were not changed; back up the folder and contact the team.", 16, Color("ffbf8a")))
 		var queue_path := LineEdit.new()
 		queue_path.text = ProjectSettings.globalize_path(session_queue.queue_dir)
 		queue_path.editable = false
 		queue_path.custom_minimum_size.y = 42
 		queue_path.add_theme_color_override("font_uneditable_color", MUTED)
-		queue_path.tooltip_text = "Путь к локальной очереди"
+		queue_path.tooltip_text = "Local queue path"
 		home_queue_warning.add_child(queue_path)
 	if not selected_profile.is_empty():
 		var count: int = audit.records.size()
 		if count > 0:
-			home_pending_section.add_child(label("Ожидают отправки: %d" % count, 16, ACCENT))
-			home_pending_section.add_child(button("Отправить сохранённые проверки", send_pending))
+			home_pending_section.add_child(label("Pending uploads: %d" % count, 16, ACCENT))
+			home_pending_section.add_child(button("Upload saved check-ins", send_pending))
 
 func show_survey() -> void:
 	clear_content("survey")
 	survey_inputs.clear()
-	content.add_child(label("Как вы себя чувствуете?", 34))
-	content.add_child(label("Заполните все поля. Несохранённый ввод доступен, пока приложение открыто; сохранённый черновик хранится на этом устройстве для выбранного профиля.", 16, MUTED))
+	content.add_child(label("How are you feeling?", 34))
+	content.add_child(label("Complete every field. Unsaved input remains available while the app is open; a saved draft is stored on this device for the selected profile.", 16, MUTED))
 	if selected_profile.is_empty():
-		content.add_child(label("Сначала выберите или создайте профиль на экране обзора.", 18, ACCENT))
+		content.add_child(label("First select or create a profile on Overview.", 18, ACCENT))
 		return
 	var form := card()
 	var draft: Dictionary = drafts.get(selected_profile.id, {})
-	add_survey_field(form, "sleep_hours", "Сон", "Сколько часов вы спали?  •  0–24 часа", draft)
-	add_survey_field(form, "fatigue", "Усталость", "0 — нет усталости  •  10 — сильная усталость", draft)
-	add_survey_field(form, "stress", "Стресс", "0 — нет стресса  •  10 — сильный стресс", draft)
-	add_survey_field(form, "mood", "Настроение", "0 — очень плохое  •  10 — отличное", draft)
+	add_survey_field(form, "sleep_hours", "Sleep", "How many hours did you sleep?  •  0–24 hours", draft)
+	add_survey_field(form, "fatigue", "Fatigue", "0 — no fatigue  •  10 — extreme fatigue", draft)
+	add_survey_field(form, "stress", "Stress", "0 — no stress  •  10 — extreme stress", draft)
+	add_survey_field(form, "mood", "Mood", "0 — very poor  •  10 — excellent", draft)
 	survey_status = label("", 15, MUTED)
 	form.add_child(survey_status)
 	if survey_edits.has(selected_profile.id):
-		survey_status.text = "Есть несохранённые изменения."
-	form.add_child(button("Сохранить черновик", func() -> void: save_survey(), true))
-	form.add_child(button("Как заполнить опрос?", func() -> void: show_help("survey")))
+		survey_status.text = "There are unsaved changes."
+	form.add_child(button("Save draft", func() -> void: save_survey(), true))
+	form.add_child(button("How do I complete the survey?", func() -> void: show_help("survey")))
 	if games_available():
-		form.add_child(button("Начать игровые задания →", start_game_run))
+		form.add_child(button("Start game tasks →", start_game_run))
 	else:
-		form.add_child(label("Сохраните опрос, затем откройте раздел «Игры». К каждому прохождению будет прикреплена сохранённая копия.", 15, MUTED))
+		form.add_child(label("Save the survey, then open Games. Its saved copy will be attached to each run.", 15, MUTED))
 
 func show_minigames() -> void:
 	if selected_profile.is_empty():
 		clear_content("games")
-		content.add_child(label("Для игр сначала создайте или выберите профиль на экране обзора.", 20, ACCENT))
+		content.add_child(label("Create or select a profile on the Overview page before playing.", 20, ACCENT))
 		return
 	var saved_survey: Dictionary = {}
 	if not draft_load_error and drafts.get(selected_profile.id) is Dictionary and not survey_edits.has(selected_profile.id):
@@ -439,7 +441,7 @@ func show_minigames() -> void:
 				refresh_home_game_latest()
 		)
 	if not minigames_host.open_for_profile(selected_profile, api_url, saved_survey):
-		set_connection_status("Игры: дождитесь отправки или проверьте доступ к очереди.")
+		set_connection_status("Games: wait for the upload or check queue access.")
 
 func add_survey_field(parent: VBoxContainer, key: String, title: String, hint: String, draft: Dictionary) -> void:
 	var row := HBoxContainer.new()
@@ -451,7 +453,7 @@ func add_survey_field(parent: VBoxContainer, key: String, title: String, hint: S
 	text.add_child(label(hint, 14, MUTED))
 	row.add_child(text)
 	var input := LineEdit.new()
-	input.placeholder_text = "Введите"
+	input.placeholder_text = "Enter value"
 	var profile_id: String = selected_profile.id
 	var edits: Dictionary = survey_edits.get(profile_id, {})
 	if edits.has(key):
@@ -466,7 +468,7 @@ func add_survey_field(parent: VBoxContainer, key: String, title: String, hint: S
 			survey_edits[profile_id] = {}
 		survey_edits[profile_id][key] = value
 		if is_instance_valid(survey_status):
-			survey_status.text = "Есть несохранённые изменения."
+			survey_status.text = "There are unsaved changes."
 			survey_status.add_theme_color_override("font_color", MUTED)
 	)
 
@@ -479,18 +481,18 @@ func save_survey() -> bool:
 	if selected_profile.is_empty():
 		return false
 	if draft_load_error:
-		set_survey_status("Не удалось прочитать прежние черновики. Сохранение остановлено, чтобы не перезаписать файл.", Color("ffadad"))
+		set_survey_status("Could not read existing drafts. Saving is paused to avoid overwriting the file.", Color("ffadad"))
 		return false
 	var draft := {}
 	for key in survey_inputs:
 		var value_text: String = survey_inputs[key].text.strip_edges().replace(",", ".")
 		if not value_text.is_valid_float():
-			set_survey_status("Заполните все поля числами от 0 до 10 (сон — от 0 до 24).", Color("ffadad"))
+			set_survey_status("Complete every field with a number from 0 to 10 (sleep: 0 to 24).", Color("ffadad"))
 			return false
 		var value := value_text.to_float()
 		var maximum := 24.0 if key == "sleep_hours" else 10.0
 		if not is_finite(value) or value < 0.0 or value > maximum:
-			set_survey_status("Проверьте диапазоны: сон — от 0 до 24, остальные показатели — от 0 до 10.", Color("ffadad"))
+			set_survey_status("Check the ranges: sleep from 0 to 24; other values from 0 to 10.", Color("ffadad"))
 			return false
 		draft[key] = value
 	var updated := drafts.duplicate(true)
@@ -498,7 +500,7 @@ func save_survey() -> bool:
 	var temp_path := draft_path + ".tmp"
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
-		set_survey_status("Не удалось сохранить черновик на устройстве.", Color("ffadad"))
+		set_survey_status("Could not save the draft on this device.", Color("ffadad"))
 		return false
 	file.store_string(JSON.stringify(updated))
 	file.flush()
@@ -506,15 +508,15 @@ func save_survey() -> bool:
 	file.close()
 	if write_error != OK:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_path))
-		set_survey_status("Не удалось сохранить черновик на устройстве.", Color("ffadad"))
+		set_survey_status("Could not save the draft on this device.", Color("ffadad"))
 		return false
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(temp_path), ProjectSettings.globalize_path(draft_path)) != OK:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_path))
-		set_survey_status("Не удалось сохранить черновик на устройстве.", Color("ffadad"))
+		set_survey_status("Could not save the draft on this device.", Color("ffadad"))
 		return false
 	drafts = updated
 	survey_edits.erase(selected_profile.id)
-	set_survey_status("Черновик сохранён на этом устройстве.", ACCENT)
+	set_survey_status("Draft saved on this device.", ACCENT)
 	return true
 
 func games_available() -> bool:
@@ -530,16 +532,16 @@ func start_game_run() -> void:
 func show_game(kind: String) -> void:
 	clear_content("game")
 	var revision := page_revision
-	content.add_child(label("Задание 1 / 2 • Реакция" if kind == "reaction" else "Задание 2 / 2 • Память", 30))
-	content.add_child(label("Переключение раздела и профиля доступно после завершения или отмены проверки.", 14, MUTED))
+	content.add_child(label("Task 1 / 2 • Reaction" if kind == "reaction" else "Task 2 / 2 • Memory", 30))
+	content.add_child(label("Navigation and profile switching are available after the check-in finishes or is cancelled.", 14, MUTED))
 	var scene: PackedScene = load(game_scene_paths[kind]) as PackedScene
 	if scene == null:
-		game_error("Не удалось загрузить игровую сцену.")
+		game_error("Could not load the game scene.")
 		return
 	var game := scene.instantiate()
 	if not game is Control or not game.has_signal("completed") or not game.has_signal("cancelled"):
 		game.free()
-		game_error("Игровая сцена не поддерживает нужный интерфейс.")
+		game_error("The game scene does not support the required interface.")
 		return
 	# A plain Control has a zero minimum height in a VBoxContainer. Give every
 	# game a usable drawing/input area while respecting larger scene minima.
@@ -547,7 +549,7 @@ func show_game(kind: String) -> void:
 	game.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	game.completed.connect(func(result: Dictionary) -> void: complete_game(kind, revision, result), CONNECT_DEFERRED)
 	game.cancelled.connect(func() -> void: cancel_game(revision), CONNECT_DEFERRED)
-	content.add_child(button("Отменить проверку", func() -> void: cancel_game(revision)))
+	content.add_child(button("Cancel check-in", func() -> void: cancel_game(revision)))
 	content.add_child(game)
 
 func cancel_game(revision: int) -> void:
@@ -560,14 +562,14 @@ func game_error(message: String) -> void:
 	active_run.clear()
 	clear_content("game_result")
 	content.add_child(label(message, 20, Color("ffadad")))
-	content.add_child(label("Проверка не сохранена. Вернитесь к опросу и попробуйте снова.", 16, MUTED))
-	content.add_child(button("Вернуться к опросу", show_survey))
+	content.add_child(label("The check-in was not saved. Return to the survey and try again.", 16, MUTED))
+	content.add_child(button("Back to survey", show_survey))
 
 func complete_game(kind: String, revision: int, result: Dictionary) -> void:
 	if current_page != "game" or page_revision != revision or active_run.is_empty():
 		return
 	if selected_profile.get("id", "") != active_run.profile_id or result.get("protocol_version") != session_queue.PROTOCOL:
-		game_error("Результат задания не соответствует профилю или согласованному протоколу.")
+		game_error("The task result does not match the profile or agreed protocol.")
 		return
 	active_run[kind] = result.duplicate(true)
 	if kind == "reaction":
@@ -585,41 +587,41 @@ func finish_game_run() -> void:
 	clear_content("game_result")
 	if not outcome.ok:
 		content.add_child(label(game_save_error_message(str(outcome.error)), 20, Color("ffadad")))
-		content.add_child(label("Результаты остаются в памяти до выхода с этого экрана.", 16, MUTED))
+		content.add_child(label("Results remain in memory until you leave this screen.", 16, MUTED))
 		if outcome.error == "storage_unavailable":
-			content.add_child(button("Повторить сохранение", finish_game_run))
-		content.add_child(button("Вернуться к опросу", func() -> void: active_run.clear(); show_survey()))
+			content.add_child(button("Retry save", finish_game_run))
+		content.add_child(button("Back to survey", func() -> void: active_run.clear(); show_survey()))
 		return
-	content.add_child(label("Проверка сохранена на устройстве", 30, ACCENT))
-	content.add_child(label("Отправьте её на сервер, чтобы открыть отчёт. При сбое её можно будет отправить повторно.", 16, MUTED))
+	content.add_child(label("Check-in saved on this device", 30, ACCENT))
+	content.add_child(label("Upload it to the server to open its report. If this fails, you can retry later.", 16, MUTED))
 	var send_status := label("", 16, MUTED)
 	content.add_child(send_status)
 	var revision := page_revision
 	var queue_id: String = outcome.id
-	content.add_child(button("Отправить и открыть отчёт", func() -> void: send_completed_session(profile_id, queue_id, revision, send_status), true))
-	content.add_child(button("На обзор", show_home))
+	content.add_child(button("Upload and open report", func() -> void: send_completed_session(profile_id, queue_id, revision, send_status), true))
+	content.add_child(button("Go to Overview", show_home))
 
 func game_save_error_message(code: String) -> String:
 	match code:
 		"storage_unavailable":
-			return "Не удалось сохранить проверку на устройстве."
+			return "Could not save the check-in on this device."
 		"invalid_profile":
-			return "Профиль проверки не распознан."
+			return "The check-in profile was not recognized."
 		"incompatible_protocol":
-			return "Версии игровых заданий не совпадают с протоколом."
+			return "Game versions do not match the protocol."
 		"invalid_survey":
-			return "Данные опроса не соответствуют допустимому формату."
+			return "Survey data does not match the required format."
 		"invalid_reaction":
-			return "Результаты задания на реакцию имеют неверный формат."
+			return "Reaction task results have an invalid format."
 		"invalid_memory":
-			return "Результаты задания на память имеют неверный формат."
-	return "Не удалось сохранить проверку."
+			return "Memory task results have an invalid format."
+	return "Could not save the check-in."
 
 func send_completed_session(profile_id: String, queue_id: String, revision: int, message: Label) -> void:
 	if page_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(message):
 		return
 	if sending_pending:
-		message.text = "Дождитесь завершения текущей отправки."
+		message.text = "Wait for the current upload to finish."
 		return
 	var record: Dictionary = {}
 	var audit: Dictionary = session_queue.inspect_queue(profile_id)
@@ -628,15 +630,15 @@ func send_completed_session(profile_id: String, queue_id: String, revision: int,
 			record = pending_record
 			break
 	if record.is_empty():
-		message.text = "Не удалось проверить локальную очередь. Откройте обзор для подробностей." if audit.directory_error or audit.problem_count > 0 else "Проверка не найдена в очереди. Проверьте историю."
+		message.text = "Could not verify the local queue. Open Overview for details." if audit.directory_error or audit.problem_count > 0 else "The check-in was not found in the queue. Check History."
 		return
 	sending_pending = true
-	message.text = "Отправляем проверку…"
+	message.text = "Uploading check-in…"
 	var response: Dictionary = await session_queue.send(record)
 	sending_pending = false
 	if page_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(message):
 		if selected_profile.get("id", "") == profile_id:
-			set_connection_status("Проверка отправлена • отчёт доступен в истории" if response.ok else pending_error_message(response))
+			set_connection_status("Check-in uploaded • report available in History" if response.ok else pending_error_message(response))
 			refresh_home_pending()
 			if response.ok:
 				refresh_home_latest()
@@ -649,7 +651,7 @@ func send_completed_session(profile_id: String, queue_id: String, revision: int,
 	message.add_theme_color_override("font_color", Color("ffbf8a"))
 	if response.get("error") == "saved_but_local_removal_failed" and response.has("session_id"):
 		var session_id: String = response.session_id
-		content.add_child(button("Открыть сохранённый отчёт", func() -> void: report_trail.clear(); show_report(session_id)))
+		content.add_child(button("Open saved report", func() -> void: report_trail.clear(); show_report(session_id)))
 
 func load_drafts() -> void:
 	if not FileAccess.file_exists(draft_path):
@@ -694,10 +696,10 @@ func refresh_profiles(preferred_id: String = "") -> void:
 	if revision != profiles_request_revision:
 		return
 	if not response.ok:
-		set_connection_status("Сервер недоступен • запустите Go API")
+		set_connection_status("Server unavailable • start the Go API")
 		status_label.add_theme_color_override("font_color", Color("ffbf8a"))
 		return
-	set_connection_status("Сервер подключён")
+	set_connection_status("Server connected")
 	status_label.add_theme_color_override("font_color", ACCENT)
 	if current_page == "game" or (current_page == "game_result" and not active_run.is_empty()):
 		return
@@ -708,7 +710,7 @@ func refresh_profiles(preferred_id: String = "") -> void:
 	profile_picker.clear()
 	selected_profile = {}
 	if profiles.is_empty():
-		profile_picker.add_item("Нет профиля")
+		profile_picker.add_item("No profile")
 	else:
 		var chosen := 0
 		for i in range(profiles.size()):
@@ -738,14 +740,14 @@ func create_profile(display_name: String) -> void:
 		return
 	var trimmed := display_name.strip_edges()
 	if trimmed.is_empty():
-		set_connection_status("Введите имя профиля")
+		set_connection_status("Enter a profile name")
 		return
-	set_connection_status("Создаём профиль…")
+	set_connection_status("Creating profile…")
 	creating_profile = true
 	var response := await request(HTTPClient.METHOD_POST, "/api/v1/profiles", {"display_name": trimmed})
 	creating_profile = false
 	if not response.ok:
-		set_connection_status("Не удалось создать профиль • проверьте сервер")
+		set_connection_status("Could not create the profile • check the server")
 		return
 	refresh_profiles(response.data.id)
 
@@ -784,10 +786,10 @@ func send_pending() -> void:
 	var records: Array = audit.records
 	if audit.directory_error:
 		sending_pending = false
-		set_connection_status("Не удалось открыть локальную очередь • проверьте обзор")
+		set_connection_status("Could not open the local queue • check Overview")
 		refresh_home_pending()
 		return
-	set_connection_status("Отправляем сохранённые проверки…")
+	set_connection_status("Uploading saved check-ins…")
 	var failure: Dictionary = {}
 	for record in records:
 		var response: Dictionary = await session_queue.send(record)
@@ -800,12 +802,12 @@ func send_pending() -> void:
 		set_connection_status(pending_error_message(failure))
 		status_label.add_theme_color_override("font_color", Color("ffbf8a"))
 	elif audit.directory_error or audit.problem_count > 0:
-		set_connection_status("Есть непроверенные файлы очереди • проверьте обзор")
+		set_connection_status("Some queue files could not be verified • check Overview")
 		status_label.add_theme_color_override("font_color", Color("ffbf8a"))
 	elif records.is_empty():
-		set_connection_status("Нет проверок для отправки")
+		set_connection_status("No check-ins to upload")
 	else:
-		set_connection_status("Проверки отправлены")
+		set_connection_status("Check-ins uploaded")
 		status_label.add_theme_color_override("font_color", ACCENT)
 	if selected_profile.get("id", "") == profile_id:
 		if current_page == "home":
@@ -817,50 +819,50 @@ func send_pending() -> void:
 
 func pending_error_message(failure: Dictionary) -> String:
 	if failure.get("error") == "saved_but_local_removal_failed":
-		return "Сервер сохранил проверку, но локальная копия осталась в очереди"
+		return "The server saved the check-in, but the local copy is still queued"
 	var status := int(failure.get("status", 0))
 	if status == 409:
-		return "Конфликт идентификатора проверки • нужна проверка данных"
+		return "Check-in ID conflict • review the data"
 	if status == 400 or status == 422:
-		return "Сервер отклонил данные проверки • нужна проверка формата"
+		return "Server rejected the check-in data • check the format"
 	if status == 404:
-		return "Профиль не найден на сервере • проверьте подключённую базу"
-	return "Не удалось отправить проверку • повторите позже"
+		return "Profile not found on the server • check the connected database"
+	return "Could not upload the check-in • try again later"
 
 func show_help(origin: String = "", session_id: String = "") -> void:
 	var profile_id: String = selected_profile.get("id", "")
 	clear_content("help")
-	content.add_child(label("Как пользоваться Zuma", 34))
-	content.add_child(label("Краткая справка доступна без интернета. Это прототип для наблюдения, не медицинская консультация.", 16, MUTED))
+	content.add_child(label("How to use Zuma", 34))
+	content.add_child(label("This brief help is available offline. This is a monitoring prototype, not medical advice.", 16, MUTED))
 	var why := card()
-	why.add_child(label("Почему эти показатели?", 21, ACCENT))
-	why.add_child(label("NASA изучает влияние недостатка сна и нарушений суточных ритмов на усталость и выполнение задач [1]. Изоляция и замкнутое пространство также могут влиять на когнитивные и поведенческие функции [2]. Эти материалы дают контекст, но не подтверждают медицинскую пригодность заданий Zuma.", 16, MUTED))
+	why.add_child(label("Why these metrics?", 21, ACCENT))
+	why.add_child(label("NASA studies how sleep loss and circadian disruption affect fatigue and task performance [1]. Isolation and confinement can also affect cognitive and behavioral functions [2]. These sources provide context but do not establish the medical validity of Zuma tasks.", 16, MUTED))
 	var survey := card()
-	survey.add_child(label("Как заполнить опрос", 21, ACCENT))
-	survey.add_child(label("Выберите свой профиль и заполните все поля. Сон укажите в часах от 0 до 24; используйте один и тот же период, согласованный командой. Этот прототип не сохраняет период сна отдельно.", 16, MUTED))
-	survey.add_child(label("Усталость и стресс: от 0 до 10, где большее число означает более сильное ощущение. Настроение: от 0 до 10, где большее число означает лучшее настроение. Ноль — допустимый ответ, пустое поле не считается нулём.", 16, MUTED))
-	survey.add_child(label("Черновик хранится на устройстве после нажатия «Сохранить черновик». Его копия прикрепляется к каждой новой игре. Если состояние изменилось, обновите опрос перед следующей игрой.", 16, MUTED))
+	survey.add_child(label("How to complete the survey", 21, ACCENT))
+	survey.add_child(label("Select your profile and complete every field. Enter sleep in hours from 0 to 24; use the same reporting period agreed by the team. This prototype does not store the sleep period separately.", 16, MUTED))
+	survey.add_child(label("Fatigue and stress: 0 to 10, where higher means a stronger feeling. Mood: 0 to 10, where higher means better mood. Zero is a valid answer; an empty field is not zero.", 16, MUTED))
+	survey.add_child(label("The draft is stored on this device after you select Save draft. Its copy is attached to every new game. If your wellbeing changes, update the survey before the next game.", 16, MUTED))
 	var results := card()
-	results.add_child(label("Как читать результаты", 21, ACCENT))
-	results.add_child(label("Реакция — медиана времени действительных попыток в миллисекундах: среднее двух центральных значений или центральное значение упорядоченного ряда. Без действительных попыток она не рассчитывается. Память — доля правильных ответов. Эти результаты описывают задания и не являются диагнозом.", 16, MUTED))
-	results.add_child(label("Сравнение строится с ближайшей более ранней проверкой того же профиля, протокола и источника данных. Если такой проверки нет, сравнение не показывается. Демонстрационные данные не смешиваются с результатами проверок.", 16, MUTED))
-	results.add_child(label("Игровые отчёты сравнивают только сопоставимые прохождения той же игры, сложности, правил и источника. Прерванные попытки не сравниваются. Время точки с игровым опросом — время игры, а не заполнения опроса.", 16, MUTED))
-	results.add_child(label("На графике расстояние между точками показывает порядок проверок, а не длительность между ними. Пропуски не соединяются; точные даты и значения доступны списком.", 16, MUTED))
+	results.add_child(label("How to read the results", 21, ACCENT))
+	results.add_child(label("Reaction is the median time of valid trials in milliseconds: the middle value of a sorted list, or the average of the two middle values. It is not calculated without valid trials. Memory is the proportion of correct answers. These results describe task performance and are not a diagnosis.", 16, MUTED))
+	results.add_child(label("Comparison uses the nearest earlier check-in with the same profile, protocol, and data source. No comparison is shown if none exists. Demonstration data is kept separate from real check-in results.", 16, MUTED))
+	results.add_child(label("Game reports compare only runs with the same game, difficulty, rules, and source. Interrupted attempts are excluded. A game survey point is dated by the game, not by survey completion.", 16, MUTED))
+	results.add_child(label("Chart spacing shows check-in order, not elapsed time. Gaps are not connected; exact dates and values are available in the list.", 16, MUTED))
 	var actions := card()
-	actions.add_child(label("Что можно сделать дальше", 21, ACCENT))
-	actions.add_child(label("Проверьте, актуален ли сохранённый опрос, и откройте историю или график, чтобы увидеть изменения. При беспокоящих симптомах или вопросах о результатах следуйте протоколу миссии и свяжитесь с медицинским специалистом. Игровые показатели не задают пороги для лечения.", 16, MUTED))
+	actions.add_child(label("What you can do next", 21, ACCENT))
+	actions.add_child(label("Check whether your saved survey is current, then open History or Trends to review changes. If you have concerning symptoms or questions about results, follow the mission protocol and contact a medical professional. Game results do not define treatment thresholds.", 16, MUTED))
 	var limits := card()
-	limits.add_child(label("Ограничения", 21, ACCENT))
-	limits.add_child(label("Для шкал самооценки и игровых заданий этого прототипа нет подтверждённой клинической валидации. Приложение не измеряет давление, пульс или другие показатели датчиками и не назначает лечение. При вопросах о здоровье следуйте медицинскому протоколу миссии и обращайтесь к специалисту согласно правилам экипажа.", 16, MUTED))
-	limits.add_child(label("Локальная модель, если она доступна, выбирает проверенные сервером факты для объяснения. Её вывод не заменяет медицинскую консультацию.", 16, MUTED))
+	limits.add_child(label("Limitations", 21, ACCENT))
+	limits.add_child(label("The self-report scales and game tasks in this prototype have not undergone confirmed clinical validation. The app does not use sensors to measure blood pressure, heart rate, or other vital signs, and does not prescribe treatment. For health questions, follow the mission medical protocol and contact a professional according to crew procedures.", 16, MUTED))
+	limits.add_child(label("When available, the local model selects server-verified facts for its explanation. Its output does not replace medical advice.", 16, MUTED))
 	var sources := card()
-	sources.add_child(label("Источники NASA", 21, ACCENT))
-	sources.add_child(label("Ссылки открываются в браузере и требуют подключения к интернету.", 15, MUTED))
-	sources.add_child(button("[1] NASA: сон и работоспособность ↗", func() -> void: OS.shell_open(NASA_SLEEP_URL)))
-	sources.add_child(button("[2] NASA: поведенческие и когнитивные риски ↗", func() -> void: OS.shell_open(NASA_BEHAVIOR_URL)))
-	sources.add_child(button("Задача NASA Space Apps ↗", func() -> void: OS.shell_open(NASA_CHALLENGE_URL)))
+	sources.add_child(label("NASA sources", 21, ACCENT))
+	sources.add_child(label("Links open in a browser and require an internet connection.", 15, MUTED))
+	sources.add_child(button("[1] NASA: sleep and performance ↗", func() -> void: OS.shell_open(NASA_SLEEP_URL)))
+	sources.add_child(button("[2] NASA: behavioral and cognitive risks ↗", func() -> void: OS.shell_open(NASA_BEHAVIOR_URL)))
+	sources.add_child(button("NASA Space Apps challenge ↗", func() -> void: OS.shell_open(NASA_CHALLENGE_URL)))
 	if origin in ["survey", "report", "trends"]:
-		content.add_child(button("Вернуться", func() -> void:
+		content.add_child(button("Return", func() -> void:
 			if selected_profile.get("id", "") != profile_id:
 				show_home()
 			elif origin == "survey":
@@ -878,21 +880,21 @@ func show_trends() -> void:
 	trend_report_cache.clear()
 	trend_game_total = 0
 	trend_game_error = false
-	content.add_child(label("Динамика самочувствия", 34))
+	content.add_child(label("Wellbeing trends", 34))
 	if selected_profile.is_empty():
-		content.add_child(label("Выберите профиль, чтобы увидеть динамику.", 17, MUTED))
+		content.add_child(label("Select a profile to view trends.", 17, MUTED))
 		return
 	var profile_id: String = selected_profile.id
-	content.add_child(label("Профиль: " + str(selected_profile.display_name) + " • Результаты не являются медицинской оценкой.", 16, MUTED))
-	var loading := label("Загружаем проверки…", 16, MUTED)
+	content.add_child(label("Profile: " + str(selected_profile.display_name) + " • Results are not a medical assessment.", 16, MUTED))
+	var loading := label("Loading check-ins…", 16, MUTED)
 	content.add_child(loading)
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/profiles/%s/sessions?limit=100&offset=0" % profile_id)
 	if page_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(loading):
 		return
 	loading.queue_free()
 	if not response.ok:
-		content.add_child(label("Не удалось загрузить проверки. Проверьте подключение к серверу.", 16, Color("ffadad")))
-		content.add_child(button("Повторить", show_trends))
+		content.add_child(label("Could not load check-ins. Check the server connection.", 16, Color("ffadad")))
+		content.add_child(button("Retry", show_trends))
 		return
 	trend_sessions = response.data.items
 	trend_total = int(response.data.total)
@@ -929,37 +931,37 @@ func build_trend_view() -> void:
 	var filters := HBoxContainer.new()
 	filters.add_theme_constant_override("separation", 14)
 	section.add_child(filters)
-	trend_metric = trend_picker(filters, "Показатель")
+	trend_metric = trend_picker(filters, "Metric")
 	for metric in TREND_METRICS:
 		trend_metric.add_item(metric.name)
 	trend_metric.select(0)
-	trend_source = trend_picker(filters, "Источник данных")
-	trend_source.add_item("Результаты проверок")
+	trend_source = trend_picker(filters, "Data source")
+	trend_source.add_item("Check-in results")
 	trend_source.set_item_metadata(0, "observed")
-	trend_source.add_item("Демонстрационные")
+	trend_source.add_item("Demo")
 	trend_source.set_item_metadata(1, "synthetic")
 	trend_source.select(0)
-	trend_protocol = trend_picker(filters, "Протокол")
+	trend_protocol = trend_picker(filters, "Protocol")
 	trend_hint = label("", 15, MUTED)
 	section.add_child(trend_hint)
 	trend_summary = label("", 15, MUTED)
 	section.add_child(trend_summary)
-	trend_retry = button("Повторить загрузку отчётов", func() -> void: render_trend())
+	trend_retry = button("Reload reports", func() -> void: render_trend())
 	trend_retry.visible = false
 	section.add_child(trend_retry)
 	trend_dates = label("", 14, MUTED)
 	section.add_child(trend_dates)
-	trend_order = label("Слева старые проверки, справа новые. Расстояние между ними одинаковое и не отражает интервалы времени; пропуски не соединяются.", 14, MUTED)
+	trend_order = label("Older check-ins are on the left, newer ones on the right. Equal spacing does not represent elapsed time; missing values are not connected.", 14, MUTED)
 	section.add_child(trend_order)
 	trend_chart = SurveyChart.new()
 	section.add_child(trend_chart)
 	trend_values = VBoxContainer.new()
 	trend_values.add_theme_constant_override("separation", 6)
 	trend_values.visible = false
-	trend_values_button = button("Показать значения", toggle_trend_values)
+	trend_values_button = button("Show values", toggle_trend_values)
 	section.add_child(trend_values_button)
 	section.add_child(trend_values)
-	section.add_child(button("Как читать график?", func() -> void: show_help("trends")))
+	section.add_child(button("How do I read the chart?", func() -> void: show_help("trends")))
 	trend_source.item_selected.connect(func(_index: int) -> void: update_trend_protocols())
 	trend_metric.item_selected.connect(func(_index: int) -> void: render_trend())
 	trend_protocol.item_selected.connect(func(_index: int) -> void: render_trend())
@@ -981,8 +983,8 @@ func update_trend_protocols() -> void:
 		if protocol.begins_with("zuma-game/"):
 			var parts: PackedStringArray = str(protocol).split("/")
 			if parts.size() == 4:
-				var games := {"fifteen": "Пятнашки", "pairs": "Найди пару", "math": "Математика", "chimp": "Запомни числа"}
-				var levels := {"easy": "легко", "normal": "обычно", "hard": "сложно"}
+				var games := {"fifteen": "Fifteen Puzzle", "pairs": "Find the Pair", "math": "Speed Math", "chimp": "Remember the Numbers"}
+				var levels := {"easy": "easy", "normal": "normal", "hard": "hard"}
 				display = "%s • %s • %s" % [games.get(parts[1], parts[1]), levels.get(parts[2], parts[2]), parts[3]]
 		trend_protocol.add_item(display)
 		trend_protocol.set_item_metadata(trend_protocol.item_count - 1, protocol)
@@ -1027,25 +1029,25 @@ func render_trend(load_missing: bool = true) -> void:
 	for session in matching:
 		if not session.get("performed_at") is String or str(session.performed_at).is_empty():
 			skipped += 1
-			points.append({"value": null, "performed_at": "Время неизвестно", "reason": "нет времени проверки"})
+			points.append({"value": null, "performed_at": "Time unknown", "reason": "no check-in time"})
 			continue
 		var value: Variant = null
-		var reason := "нет данных"
+		var reason := "no data"
 		if metric.get("kind", "survey") == "report" and session.get("trend_kind") == "game":
-			reason = "этот показатель относится к прежним заданиям реакции и памяти"
+			reason = "this metric belongs to the legacy reaction and memory tasks"
 		elif metric.get("kind", "survey") == "report":
 			var report: Variant = trend_report_cache.get(session.get("id", ""))
 			if not session.get("id") is String or str(session.id).is_empty():
-				reason = "нет идентификатора проверки"
+				reason = "no check-in ID"
 			elif not report is Dictionary:
-				reason = "отчёт недоступен"
+				reason = "report unavailable"
 				unavailable += 1
 			elif metric.key == "memory_percent":
 				value = report.get("memory_percent")
 			elif report.get("reaction") is Dictionary:
 				value = report.reaction.get("median_ms")
 				if value == null:
-					reason = "нет действительных попыток"
+					reason = "no valid trials"
 		else:
 			var survey: Variant = session.get("survey")
 			if survey is Dictionary:
@@ -1064,22 +1066,22 @@ func render_trend(load_missing: bool = true) -> void:
 	var scale_max: float = float(metric.max)
 	if metric.key == "reaction_median_ms":
 		scale_max = maxf(100.0, ceilf(peak / 100.0) * 100.0)
-	trend_hint.text = str(metric.hint) + (" Масштаб выбран по данным и не является медицинской нормой." if metric.key == "reaction_median_ms" else " Шкала не является медицинской нормой.")
+	trend_hint.text = str(metric.hint) + (" The scale is based on the data and is not a medical reference range." if metric.key == "reaction_median_ms" else " This scale is not a medical reference range.")
 	var window_count := trend_sessions.size()
-	trend_summary.text = "Проверено последних записей всех источников: %d из %d. Доступных значений: %d." % [window_count, trend_total + trend_game_total, valid_points.size()]
+	trend_summary.text = "Latest records checked across all sources: %d of %d. Available values: %d." % [window_count, trend_total + trend_game_total, valid_points.size()]
 	if protocol.begins_with("zuma-game/"):
-		trend_hint.text += " Это копии сохранённого опроса: отметка времени относится к игре, а не к заполнению опроса; одна копия может повторяться."
+		trend_hint.text += " These are copies of saved surveys: the timestamp refers to the game, not the survey; the same copy may appear more than once."
 	if trend_game_error:
-		trend_summary.text += " Игровые прохождения не загружены; обновите раздел."
+		trend_summary.text += " Game runs were not loaded; refresh this section."
 	if skipped > 0:
-		trend_summary.text += " Без значения: %d." % skipped
+		trend_summary.text += " Missing values: %d." % skipped
 	if unavailable > 0:
-		trend_summary.text += " Отчётов недоступно: %d." % unavailable
+		trend_summary.text += " Unavailable reports: %d." % unavailable
 	trend_retry.visible = unavailable > 0
 	if matching.is_empty():
-		trend_summary.text += " Нет данных для выбранных источника и протокола."
+		trend_summary.text += " No data for the selected source and protocol."
 	elif valid_points.is_empty():
-		trend_summary.text += " Нет доступных значений."
+		trend_summary.text += " No available values."
 	trend_dates.visible = not valid_points.is_empty()
 	trend_order.visible = not points.is_empty()
 	if not valid_points.is_empty():
@@ -1087,7 +1089,7 @@ func render_trend(load_missing: bool = true) -> void:
 		var last: Dictionary = valid_points.back()
 		var first_time := str(first.performed_at).replace("T", " ").replace("Z", " UTC")
 		var last_time := str(last.performed_at).replace("T", " ").replace("Z", " UTC")
-		trend_dates.text = "Первая: %s — %.1f %s  •  Последняя: %s — %.1f %s" % [first_time, float(first.value), metric.unit, last_time, float(last.value), metric.unit]
+		trend_dates.text = "First: %s — %.1f %s  •  Latest: %s — %.1f %s" % [first_time, float(first.value), metric.unit, last_time, float(last.value), metric.unit]
 	trend_chart.visible = not valid_points.is_empty()
 	trend_chart.set_data(points, scale_max)
 	for child in trend_values.get_children():
@@ -1095,15 +1097,15 @@ func render_trend(load_missing: bool = true) -> void:
 		child.queue_free()
 	trend_values.visible = false
 	trend_values_button.disabled = points.is_empty()
-	trend_values_button.text = "Показать значения"
+	trend_values_button.text = "Show values"
 	for point in points:
 		var timestamp := str(point.performed_at).replace("T", " ").replace("Z", " UTC")
 		var text := str(point.reason) if point.value == null else "%.1f %s" % [float(point.value), metric.unit]
 		trend_values.add_child(label("%s  •  %s" % [timestamp, text], 15, MUTED))
 
 func load_trend_reports(sessions: Array) -> void:
-	trend_hint.text = "Значения берутся из расчётов сервера; недоступные отчёты не заменяются нулём."
-	trend_summary.text = "Загружаем отчёты: 0 из %d." % sessions.size()
+	trend_hint.text = "Values come from server calculations; unavailable reports are not replaced with zero."
+	trend_summary.text = "Loading reports: 0 of %d." % sessions.size()
 	trend_dates.visible = false
 	trend_order.visible = false
 	trend_chart.visible = false
@@ -1118,7 +1120,7 @@ func load_trend_reports(sessions: Array) -> void:
 	add_child(loader)
 	loader.progress.connect(func(completed: int, total: int) -> void:
 		if current_page == "trends" and page_revision == page and trend_load_revision == revision:
-			trend_summary.text = "Загружаем отчёты: %d из %d." % [completed, total]
+			trend_summary.text = "Loading reports: %d of %d." % [completed, total]
 	)
 	loader.finished.connect(func(reports: Dictionary, _failures: Array) -> void:
 		if current_page == "trends" and page_revision == page and trend_load_revision == revision:
@@ -1129,63 +1131,63 @@ func load_trend_reports(sessions: Array) -> void:
 
 func toggle_trend_values() -> void:
 	trend_values.visible = not trend_values.visible
-	trend_values_button.text = "Скрыть значения" if trend_values.visible else "Показать значения"
+	trend_values_button.text = "Hide values" if trend_values.visible else "Show values"
 
 func show_history() -> void:
 	clear_content("history")
 	report_trail.clear()
 	var revision := page_revision
-	content.add_child(label("История проверок реакции и памяти", 34))
-	content.add_child(label("История четырёх игр доступна в разделе «Игры».", 16, MUTED))
+	content.add_child(label("Reaction and memory check-in history", 34))
+	content.add_child(label("History for the four games is available under Games.", 16, MUTED))
 	if selected_profile.is_empty():
-		content.add_child(label("Выберите профиль, чтобы увидеть его историю.", 17, MUTED))
-		content.add_child(button("Проверить подключение", func() -> void: refresh_profiles()))
+		content.add_child(label("Select a profile to view its history.", 17, MUTED))
+		content.add_child(button("Check connection", func() -> void: refresh_profiles()))
 		return
-	content.add_child(label("Профиль: " + str(selected_profile.display_name), 16, MUTED))
+	content.add_child(label("Profile: " + str(selected_profile.display_name), 16, MUTED))
 	var profile_id: String = selected_profile.id
 	if profile_id != history_profile_id:
 		history_profile_id = profile_id
 		history_offset = 0
 	var requested_offset := history_offset
-	var loading := label("Загружаем историю…", 16, MUTED)
+	var loading := label("Loading history…", 16, MUTED)
 	content.add_child(loading)
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/profiles/%s/sessions?limit=%d&offset=%d" % [profile_id, HISTORY_PAGE_SIZE, requested_offset])
 	if page_revision != revision or selected_profile.get("id", "") != profile_id or not is_instance_valid(loading):
 		return
 	loading.queue_free()
 	if not response.ok:
-		content.add_child(label("Не удалось загрузить историю. Проверьте подключение к серверу.", 16, Color("ffadad")))
-		content.add_child(button("Повторить", show_history))
+		content.add_child(label("Could not load history. Check the server connection.", 16, Color("ffadad")))
+		content.add_child(button("Retry", show_history))
 		return
 	if response.data.items.is_empty() and requested_offset == 0:
-		content.add_child(label("Пока нет проверок прежнего формата. Прохождения четырёх игр доступны в разделе «Игры».", 17, MUTED))
+		content.add_child(label("There are no legacy check-ins yet. The four games are available under Games.", 17, MUTED))
 		return
 	var count: int = response.data.items.size()
 	var total: int = int(response.data.total)
 	if count > 0:
-		content.add_child(label("Записи %d–%d из %d • сначала новые" % [requested_offset + 1, requested_offset + count, total], 14, MUTED))
+		content.add_child(label("Records %d–%d of %d • newest first" % [requested_offset + 1, requested_offset + count, total], 14, MUTED))
 	else:
-		content.add_child(label("На этой странице больше нет записей.", 16, MUTED))
+		content.add_child(label("There are no more records on this page.", 16, MUTED))
 	var navigation := HBoxContainer.new()
 	navigation.add_theme_constant_override("separation", 10)
 	content.add_child(navigation)
-	var previous := button("← Новее", func() -> void: show_history_page(maxi(0, requested_offset - HISTORY_PAGE_SIZE)))
+	var previous := button("← Newer", func() -> void: show_history_page(maxi(0, requested_offset - HISTORY_PAGE_SIZE)))
 	previous.disabled = requested_offset == 0
 	navigation.add_child(previous)
-	var next := button("Старее →", func() -> void: show_history_page(requested_offset + HISTORY_PAGE_SIZE))
+	var next := button("Older →", func() -> void: show_history_page(requested_offset + HISTORY_PAGE_SIZE))
 	next.disabled = requested_offset + count >= total or count == 0
 	navigation.add_child(next)
 	for session in response.data.items:
 		var entry := card()
 		entry.add_child(label(str(session.performed_at).replace("T", " ").replace("Z", " UTC"), 19))
-		entry.add_child(label("Источник: " + ("демонстрационные данные" if session.source == "synthetic" else "результат проверки"), 14, MUTED))
+		entry.add_child(label("Source: " + ("demonstration data" if session.source == "synthetic" else "check-in result"), 14, MUTED))
 		if session.get("survey") is Dictionary and session.get("memory") is Dictionary:
 			var survey: Dictionary = session.survey
 			var memory: Dictionary = session.memory
-			entry.add_child(label("Сон: %s ч  •  Усталость: %s/10  •  Стресс: %s/10  •  Настроение: %s/10" % [survey.sleep_hours, survey.fatigue, survey.stress, survey.mood], 15, MUTED))
-			entry.add_child(label("Память: %d из %d ответов верные" % [int(memory.correct), int(memory.total)], 15, MUTED))
+			entry.add_child(label("Sleep: %s h  •  Fatigue: %s/10  •  Stress: %s/10  •  Mood: %s/10" % [survey.sleep_hours, survey.fatigue, survey.stress, survey.mood], 15, MUTED))
+			entry.add_child(label("Memory: %d of %d answers correct" % [int(memory.correct), int(memory.total)], 15, MUTED))
 		var session_id: String = session.id
-		entry.add_child(button("Открыть отчёт", func() -> void: show_report(session_id)))
+		entry.add_child(button("Open report", func() -> void: show_report(session_id)))
 
 func show_history_page(offset: int) -> void:
 	history_offset = maxi(0, offset)
@@ -1194,58 +1196,58 @@ func show_history_page(offset: int) -> void:
 func show_report(session_id: String) -> void:
 	clear_content("report")
 	var revision := page_revision
-	content.add_child(label("Отчёт о проверке", 34))
-	var loading := label("Загружаем отчёт…", 16, MUTED)
+	content.add_child(label("Check-in report", 34))
+	var loading := label("Loading report…", 16, MUTED)
 	content.add_child(loading)
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/sessions/%s/report" % session_id)
 	if page_revision != revision or not is_instance_valid(loading):
 		return
 	loading.queue_free()
 	if not response.ok:
-		content.add_child(label("Не удалось загрузить отчёт.", 16, Color("ffadad")))
-		content.add_child(button("Вернуться к истории", show_history))
+		content.add_child(label("Could not load the report.", 16, Color("ffadad")))
+		content.add_child(button("Back to history", show_history))
 		return
 	var report: Dictionary = response.data
 	var summary := card()
 	summary.add_child(label(str(report.performed_at).replace("T", " ").replace("Z", " UTC"), 16, MUTED))
 	if report.source == "synthetic":
-		summary.add_child(label("Демонстрационные данные", 16, ACCENT))
+		summary.add_child(label("Demonstration data", 16, ACCENT))
 	var median: Variant = report.reaction.median_ms
-	summary.add_child(label("Реакция: %s" % ("нет действительных попыток" if median == null else "%.0f мс (медиана)" % float(median)), 22))
-	summary.add_child(label("Память: %.1f%% правильных ответов" % float(report.memory_percent), 22))
-	summary.add_child(label("Сон: %s ч   •   Усталость: %s/10   •   Стресс: %s/10   •   Настроение: %s/10" % [report.survey.sleep_hours, report.survey.fatigue, report.survey.stress, report.survey.mood], 16, MUTED))
-	summary.add_child(label("Усталость и стресс: выше — больше; настроение: выше — лучше.", 14, MUTED))
+	summary.add_child(label("Reaction: %s" % ("no valid trials" if median == null else "%.0f ms (median)" % float(median)), 22))
+	summary.add_child(label("Memory: %.1f%% correct answers" % float(report.memory_percent), 22))
+	summary.add_child(label("Sleep: %s h   •   Fatigue: %s/10   •   Stress: %s/10   •   Mood: %s/10" % [report.survey.sleep_hours, report.survey.fatigue, report.survey.stress, report.survey.mood], 16, MUTED))
+	summary.add_child(label("Higher fatigue and stress mean more; higher mood means better.", 14, MUTED))
 	if report.comparison == null:
-		summary.add_child(label("Пока нет предыдущей сопоставимой проверки для сравнения.", 16, MUTED))
+		summary.add_child(label("There is no previous comparable check-in yet.", 16, MUTED))
 	else:
-		summary.add_child(label("Сравнение с ближайшей предыдущей проверкой того же профиля, протокола и источника данных.", 15, MUTED))
-		summary.add_child(label("Изменение памяти относительно предыдущей проверки: %+.1f п.п." % float(report.comparison.memory_delta_pp), 16, MUTED))
+		summary.add_child(label("Compared with the nearest previous check-in for the same profile, protocol, and data source.", 15, MUTED))
+		summary.add_child(label("Change in memory performance since the previous check-in: %+.1f pp." % float(report.comparison.memory_delta_pp), 16, MUTED))
 		if report.comparison.reaction_delta_ms != null:
-			summary.add_child(label("Изменение медианы реакции: %+.0f мс." % float(report.comparison.reaction_delta_ms), 16, MUTED))
+			summary.add_child(label("Change in median reaction time: %+.0f ms." % float(report.comparison.reaction_delta_ms), 16, MUTED))
 		else:
-			summary.add_child(label("Сравнение реакции недоступно: в одной из проверок нет действительных попыток.", 16, MUTED))
+			summary.add_child(label("Reaction comparison is unavailable: one check-in has no valid trials.", 16, MUTED))
 		var delta: Dictionary = report.comparison.survey_delta
-		summary.add_child(label("Изменение самооценки: сон %+.1f ч • усталость %+.1f • стресс %+.1f • настроение %+.1f" % [float(delta.sleep_hours), float(delta.fatigue), float(delta.stress), float(delta.mood)], 16, MUTED))
+		summary.add_child(label("Change in self-reported values: sleep %+.1f h • fatigue %+.1f • stress %+.1f • mood %+.1f" % [float(delta.sleep_hours), float(delta.fatigue), float(delta.stress), float(delta.mood)], 16, MUTED))
 	var details := card()
-	details.add_child(label("Подробнее", 20))
-	details.add_child(label("Попытки реакции: %s действительных, %s преждевременных, %s пропущенных." % [report.reaction.valid, report.reaction.premature, report.reaction.missed], 16, MUTED))
+	details.add_child(label("Details", 20))
+	details.add_child(label("Reaction trials: %s valid, %s premature, %s missed." % [report.reaction.valid, report.reaction.premature, report.reaction.missed], 16, MUTED))
 	if report.explanation != null:
 		for category in ["observations", "comparisons", "limitations"]:
 			for fact in report.explanation.get(category, []):
 				details.add_child(label("• " + str(fact.text), 16, MUTED))
 	else:
-		details.add_child(label("Объяснение модели ещё не создано. Числовой отчёт доступен и без него.", 16, MUTED))
+		details.add_child(label("The model explanation has not been created yet. The numerical report is available without it.", 16, MUTED))
 	var explain_status := label("", 15, MUTED)
 	details.add_child(explain_status)
-	details.add_child(button("Получить объяснение", func() -> void: generate_explanation(session_id, revision, explain_status)))
-	details.add_child(button("Как читать результаты?", func() -> void: show_help("report", session_id)))
-	details.add_child(button("Открыть версию для печати", func() -> void: OS.shell_open(api_url + "/api/v1/sessions/%s/report.html" % session_id)))
+	details.add_child(button("Get explanation", func() -> void: generate_explanation(session_id, revision, explain_status)))
+	details.add_child(button("How do I read the results?", func() -> void: show_help("report", session_id)))
+	details.add_child(button("Open print version", func() -> void: OS.shell_open(api_url + "/api/v1/sessions/%s/report.html" % session_id)))
 	if report.get("baseline_session_id") != null:
 		var baseline_id: String = report.baseline_session_id
-		details.add_child(button("Открыть предыдущую сопоставимую проверку", func() -> void: open_baseline(session_id, baseline_id)))
+		details.add_child(button("Open previous comparable check-in", func() -> void: open_baseline(session_id, baseline_id)))
 	if not report_trail.is_empty():
-		details.add_child(button("Вернуться к открытому отчёту", back_to_report))
-	details.add_child(button("Вернуться к истории", show_history))
+		details.add_child(button("Back to the open report", back_to_report))
+	details.add_child(button("Back to history", show_history))
 
 func open_baseline(current_id: String, baseline_id: String) -> void:
 	report_trail.append(current_id)
@@ -1259,19 +1261,19 @@ func back_to_report() -> void:
 
 func generate_explanation(session_id: String, revision: int, message: Label) -> void:
 	if explaining:
-		message.text = "Другой запрос объяснения ещё выполняется."
+		message.text = "Another explanation request is still running."
 		return
 	explaining = true
-	message.text = "Создаём объяснение. Это может занять несколько минут…"
+	message.text = "Creating an explanation. This may take a few minutes…"
 	var response := await request(HTTPClient.METHOD_POST, "/api/v1/sessions/%s/explanation" % session_id, null, 140.0)
 	explaining = false
 	if page_revision != revision or not is_instance_valid(message):
 		return
 	if not response.ok:
-		message.text = "Не удалось получить объяснение. Возможно, модель занята или сервер недоступен."
+		message.text = "Could not obtain an explanation. The model may be busy or the server unavailable."
 	elif response.data.status == "ready":
 		show_report(session_id)
 	elif response.data.status == "unavailable":
-		message.text = "Локальная модель недоступна. Отчёт можно просмотреть без неё."
+		message.text = "The local model is unavailable. You can view the report without it."
 	else:
-		message.text = "Объяснение не удалось подготовить. Попробуйте позже."
+		message.text = "Could not prepare the explanation. Try again later."

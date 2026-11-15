@@ -1,42 +1,41 @@
-# Zuma — план команды
+# Zuma — team plan
 
-Локальный игровой прототип для наблюдения за самочувствием и результатами
-когнитивных заданий астронавтов. Текущий прототип сохраняет опрос и
-прикрепляет его копию к прохождениям четырёх игр; история и отчёты доступны для каждого
-прохождения. Объяснение модели необязательно. Часы исключены. Результаты не
-являются диагнозом.
+A local game-based prototype for observing astronauts' wellbeing and cognitive
+task performance. The current prototype saves a survey and attaches a snapshot
+to runs of four games; each run has history and reports. Model explanations
+are optional. Watches are excluded. Results are not a diagnosis.
 
-## Архитектура и ответственность
+## Architecture and responsibilities
 
-- Godot / GDScript: готовы оболочка, профили, черновик опроса, история, отчёты, графики и очередь для полных сессий; четыре независимые мини-игры подключены к профилю и отдельной очереди прохождений.
-- Единый Go-сервер в server/: API, проверка данных, расчёты и отчёты.
-- SQLite: профили, неизменяемые сессии и проверенные объяснения.
-- Qwen3 8B через локальную Ollama: выбор и порядок проверенных фактов.
-- После установки компонентов рабочий сценарий без интернета; модель необязательна.
+- Godot / GDScript: the application shell, profiles, survey draft, history, reports, charts, and full-session queue are ready; four independent minigames are connected to the profile and a separate run queue.
+- A single Go server in server/: API, data validation, calculations, and reports.
+- SQLite: profiles, immutable sessions, and validated explanations.
+- Qwen3 8B through local Ollama: selection and ordering of validated facts.
+- Once components are installed, the workflow operates without internet access; the model is optional.
 
-Роли: UI/UX, интерфейс Godot, мини-игры, backend Go и модель,
-исследование и тестирование, координация и презентация.
+Roles: UI/UX, Godot interface, minigames, Go backend and model,
+research and testing, coordination and presentation.
 
-## Подключение клиента
+## Connecting the client
 
-1. К каждому новому прохождению прикрепляется копия сохранённого опроса. Совместная сессия реакции и памяти требует других игровых сцен и протокола.
-2. Использовать [OpenAPI](server/docs/openapi.yaml) и [GDScript](server/examples/client.gd).
-3. Игры используют собственную очередь с UUID/payload и API: [контракт](server/docs/minigames.md).
-4. Показывать историю, source, отсутствие baseline и статус объяснения честно.
-5. Проверить запуск Windows-сборки Godot вместе с локальным сервером и готовыми играми на компьютере демонстрации. В изолированной тестовой среде проверены сборка, визуальное прохождение математической игры и отрисовка всех четырёх игр; подробности и пределы — в [результатах проверки](docs/integration-verification.md).
+1. Attach a snapshot of the saved survey to each new run. A combined reaction and memory session requires different game scenes and a different protocol.
+2. Use [OpenAPI](server/docs/openapi.yaml) and [GDScript](server/examples/client.gd).
+3. Games use their own queue with UUID/payload and API: [contract](server/docs/minigames.md).
+4. Clearly show history, source, missing baseline, and explanation status.
+5. Check the Windows Godot build with the local server and finished games on the demonstration computer. Building, visually completing Speed Math, and rendering all four games were checked in an isolated test environment; see [verification results](docs/integration-verification.md) for details and limits.
 
-Для демонстрации прежних отчётов можно создать отдельный профиль с вымышленными
-проверками по инструкции в README. Его данные помечены как демонстрационные.
+To demonstrate legacy reports, create a separate profile with fictional checks
+as described in README. Its data is labeled as demonstration data.
 
-Документы backend: [спецификация](docs/superpowers/specs/2026-11-14-backend-design.md),
-[план реализации](docs/superpowers/plans/2026-11-14-backend.md).
+Backend documents: [specification](docs/superpowers/specs/2026-11-14-backend-design.md),
+[implementation plan](docs/superpowers/plans/2026-11-14-backend.md).
 
-## Источники
+## Sources
 
 - https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/
 - https://www.nasa.gov/hrp/risks/
 - https://www.nasa.gov/hrp/ongoing-hrp-research/
 - https://www.spaceappschallenge.org/resources/project-submission-guide/
 
-Источники задают контекст, но не подтверждают медицинскую валидность наших заданий.
-Реальные записи, сборки и веса модели не хранятся в Git.
+These sources provide context but do not establish the medical validity of our tasks.
+Real records, builds, and model weights are not stored in Git.

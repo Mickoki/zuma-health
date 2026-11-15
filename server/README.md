@@ -1,30 +1,30 @@
-# Сервер Zuma
+# Zuma server
 
-Локальный Go API для desktop-клиента Godot: опросы, задания на реакцию/память,
-SQLite, история, JSON/HTML-отчёты, Qwen3 8B через Ollama. Часы не используются.
-Это прототип, не медицинская система.
+Local Go API for the Godot desktop client: surveys, reaction/memory tasks,
+SQLite, history, JSON/HTML reports, and Qwen3 8B through Ollama. No wearable watch is used.
+This is a prototype, not a medical system.
 
-## Запуск Windows / PowerShell
+## Running on Windows / PowerShell
 
-Нужен Go 1.26+. Отдельный SQLite-сервер и C-компилятор не нужны. Из `server`:
+Go 1.26+ is required. No separate SQLite server or C compiler is needed. From `server`:
 
 ```powershell
 go mod download
 go run ./cmd/zuma
 ```
 
-API: `http://127.0.0.1:8080`. База `./data/zuma.db` создаётся автоматически;
-путь относителен рабочей папке процесса. Для объяснений заранее установите
-Ollama, загрузите модель и запустите Ollama, если она ещё не работает:
+API: `http://127.0.0.1:8080`. The database `./data/zuma.db` is created automatically;
+the path is relative to the process working directory. For explanations, first install
+Ollama, download the model, and start Ollama if it is not already running:
 
 ```powershell
 ollama pull qwen3:8b
 ollama list
-# При необходимости в отдельном терминале: ollama serve
+# If needed, in a separate terminal: ollama serve
 ```
 
-После скачивания зависимостей/модели и сборки рабочий сценарий не требует
-интернета. Основной сценарий не требует Ollama. Сборка и проверка:
+Once dependencies and the model are downloaded and the build is complete, the workflow
+does not require internet access. The core workflow does not require Ollama. Build and verify:
 
 ```powershell
 go test ./...
@@ -33,40 +33,40 @@ go build -o zuma.exe ./cmd/zuma
 .\zuma.exe
 ```
 
-Завершение — Ctrl+C: отмена генерации, завершение HTTP, закрытие SQLite.
-Готовый бинарник запускается без Go; Ollama с моделью устанавливается отдельно.
+Shutdown with Ctrl+C: cancel generation, shut down HTTP, and close SQLite.
+The built binary runs without Go; Ollama and the model are installed separately.
 
-## Настройки
+## Settings
 
-| Переменная | Значение по умолчанию |
+| Variable | Default |
 | --- | --- |
 | ZUMA_ADDR | 127.0.0.1:8080 |
 | ZUMA_DB | ./data/zuma.db |
 | ZUMA_OLLAMA_URL | http://127.0.0.1:11434 |
 | ZUMA_MODEL | qwen3:8b |
-| ZUMA_MODEL_TIMEOUT | 120s; положительный, максимум 10m |
+| ZUMA_MODEL_TIMEOUT | 120s; positive, maximum 10m |
 
-Пример: `$env:ZUMA_DB = 'C:\ZumaData\zuma.db'` перед запуском.
-Слушать можно только loopback-IP или localhost. Ollama — локальный HTTP без
-прокси, внешних редиректов и модели с суффиксом `:cloud`. Целевая модель — qwen3:8b.
+Example: `$env:ZUMA_DB = 'C:\ZumaData\zuma.db'` before starting.
+The listener accepts only loopback IPs or localhost. Ollama uses local HTTP without
+proxies, external redirects, or a model with the `:cloud` suffix. The target model is qwen3:8b.
 
-API без авторизации предназначен для доверенного локального desktop-клиента.
-Профили не изолируют данные между процессами ОС. CORS не включён. Для сетевого,
-браузерного и многопользовательского доступа требуется отдельное проектирование.
-База не зашифрована: доступ к каталогу регулируется ОС.
+The unauthenticated API is intended for a trusted local desktop client.
+Profiles do not isolate data between OS processes. CORS is disabled. Network,
+browser, and multi-user access require separate design work.
+The database is unencrypted: the OS controls access to its directory.
 
-## API и Godot
+## API and Godot
 
-Независимые прохождения четырёх новых игр обслуживаются через `/game-runs`,
-без обязательного старого опроса/реакции/памяти. [Контракт и примеры](docs/minigames.md),
-[переносимый Godot-модуль](../addons/zuma_minigames/README.md). SQLite автоматически
-мигрирует в schema2; перед обновлением остановите старый сервер и сделайте копию базы.
+Independent runs of the four new games use `/game-runs`,
+without requiring the legacy survey/reaction/memory session. [Contract and examples](docs/minigames.md),
+[portable Godot module](../addons/zuma_minigames/README.md). SQLite automatically
+migrates to schema2; stop the old server and back up the database before upgrading.
 
-- [OpenAPI 3.1](docs/openapi.yaml): пути, схемы, статусы, ограничения.
-- [GDScript](examples/client.gd): асинхронный пример Godot 4 desktop.
-- [PowerShell](examples/requests.ps1): полный синтетический сценарий.
+- [OpenAPI 3.1](docs/openapi.yaml): paths, schemas, statuses, limits.
+- [GDScript](examples/client.gd): asynchronous Godot 4 desktop example.
+- [PowerShell](examples/requests.ps1): complete synthetic workflow.
 
-В другом терминале из `server`:
+In another terminal, from `server`:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8080/readyz
@@ -74,60 +74,60 @@ Invoke-RestMethod http://127.0.0.1:8080/readyz
 .\examples\requests.ps1 -Explain
 ```
 
-curl (например, из Git Bash):
+curl (for example, from Git Bash):
 
 ```sh
 curl -X POST http://127.0.0.1:8080/api/v1/profiles -H 'Content-Type: application/json' -d '{"display_name":"Demo crew member"}'
 ```
 
-Цепочка: POST profile → POST complete session → GET history → GET report →
-опционально POST explanation → повторный GET report. HTML:
-`/api/v1/sessions/{id}/report.html`. Его можно напечатать/сохранить в PDF
-средствами браузера; отдельного PDF endpoint нет.
+Sequence: POST profile → POST complete session → GET history → GET report →
+optional POST explanation → GET report again. HTML:
+`/api/v1/sessions/{id}/report.html`. Use the browser to print/save it as PDF;
+there is no separate PDF endpoint.
 
-Клиент сохраняет UUID client_session_id вместе с payload до успешного ответа:
-201 — новая сессия, 200 — идентичный повтор, 409 — другие данные с тем же UUID.
-Новый запуск задания — новый UUID. Черновики хранятся в Godot; сервер принимает
-полную сессию с опросом и обоими заданиями. Для explanation используется отдельный
-HTTPRequest с таймаутом 140 секунд при серверных 120 секундах.
+The client retains the client_session_id UUID with the payload until a successful response:
+201 means a new session, 200 an identical replay, and 409 different data with the same UUID.
+A new task run needs a new UUID. Drafts are stored in Godot; the server accepts
+a complete session with the survey and both tasks. Explanation requests use a separate
+HTTPRequest with a 140-second timeout against the server's 120 seconds.
 
-## Расчёты
+## Calculations
 
-Опрос: sleep_hours 0–24 ч; fatigue/stress 0–10 (выше — больше), mood 0–10
-(выше — лучше). Это продуктовые шкалы без клинической валидации. Нули допустимы;
-пропущенные поля и null не заменяются нулями.
+Survey: sleep_hours 0–24 h; fatigue/stress 0–10 (higher means more), mood 0–10
+(higher means better). These are product scales without clinical validation. Zeros are valid;
+missing fields and null are not replaced with zeros.
 
-Реакция: 1–200 попыток valid/premature/missed; reaction_ms 1–10000 мс только
-для valid. Среднее и медиана valid, без valid — null. Память: correct/total*100,
-1<=total<=1000. Для сопоставимости заданий используется reaction-memory-v1;
-изменение механики потребует новой согласованной версии протокола.
+Reaction: 1–200 valid/premature/missed attempts; reaction_ms 1–10000 ms only
+for valid attempts. Mean and median use valid attempts; without any, both are null. Memory: correct/total*100,
+1<=total<=1000. reaction-memory-v1 provides task comparability;
+changing the mechanics requires a new agreed protocol version.
 
-Baseline — ближайшая строго более ранняя сессия того же профиля, протокола
-и source. Порядок загрузки не важен. Сравниваются медиана (мс и проценты),
-память (процентные пункты) и самооценка. При загрузке задним числом baseline
-может измениться: старое объяснение скрывается. synthetic и observed не смешиваются.
-История сортируется по performed_at и ID от новых к старым, пагинация limit/offset.
+The baseline is the nearest strictly earlier session with the same profile, protocol,
+and source. Upload order does not matter. Comparisons cover the median (ms and percent),
+memory (percentage points), and self-assessment. Backfilled sessions can change the baseline:
+the old explanation is hidden. synthetic and observed are kept separate.
+History is sorted by performed_at and ID, newest first, with limit/offset pagination.
 
-Qwen выбирает и упорядочивает разрешённые fact_ids; Go проверяет категории,
-ссылки и структуру и формирует текст со своими числами. Произвольный текст
-модели не публикуется. Обязательные ограничения добавляет Go. Это объяснение
-фактов, а не свободная консультация; модель может выбрать менее полезный порядок.
-Диагнозов, клинических порогов и общего «балла здоровья» нет.
+Qwen selects and orders allowed fact_ids; Go validates categories,
+references, and structure and produces text using its own numbers. Arbitrary model text
+is not published. Go adds mandatory limitations. This explains facts rather than providing
+open-ended advice; the model may choose a less useful order.
+There are no diagnoses, clinical thresholds, or overall “health score”.
 
-Одновременно выполняется одна генерация, лишний запрос — 409. HTTP 200 содержит
-status ready/unavailable/invalid, его нужно проверять. Сбой не удаляет ранее
-готовое актуальное объяснение. Сохранение и числовой отчёт не зависят от модели.
-/healthz — процесс; /readyz — SQLite; /api/v1/model/status — Ollama и наличие модели.
+Only one generation runs at a time; another request receives 409. HTTP 200 contains
+status ready/unavailable/invalid, which the client must check. Failure does not remove
+an existing current explanation. Saving and numeric reports do not depend on the model.
+/healthz checks the process; /readyz checks SQLite; /api/v1/model/status checks Ollama and model availability.
 
-## Резервная копия
+## Backup
 
-Данные, WAL, сборки и веса модели не добавляются в Git. Для копирования остановите
-сервер и все другие процессы, открывшие базу. Скопируйте каталог с zuma.db и,
-если остались, zuma.db-wal и zuma.db-shm как единый набор. Простое копирование
-работающей базы не подходит. Для восстановления при остановленном сервере
-верните весь набор в пустой отдельный каталог, укажите ZUMA_DB, запустите сервер
-и проверьте историю. Не смешивайте WAL разных копий.
+Data, WAL files, builds, and model weights are excluded from Git. For a backup, stop
+the server and every other process with the database open. Copy the directory containing zuma.db and,
+if present, zuma.db-wal and zuma.db-shm together as one set. Simply copying
+a running database is unsuitable. To restore, with the server stopped,
+restore the entire set into a separate empty directory, set ZUMA_DB, start the server,
+and check the history. Do not combine WAL files from different backups.
 
-Миграции встроены, транзакционны и выполняются при запуске. Более новая схема
-отклоняется старым сервером. Перед обновлением делайте резервную копию.
-Результаты проверок: [verification.md](docs/verification.md).
+Migrations are embedded, transactional, and run at startup. An older server
+rejects a newer schema. Back up before upgrading.
+Verification results: [verification.md](docs/verification.md).
