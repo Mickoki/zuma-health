@@ -2,7 +2,7 @@
 
 Portable module for **Godot 4.7.2 Standard / GDScript / Compatibility**.
 Four games, instructions, difficulty levels, results, an offline queue, and
-delivery to the Go API. The application's main menu is unchanged.
+delivery to the Go API. The module can also run as a standalone demo.
 
 The module includes its own SVG icons, theme, and lightweight orbital-background
 shader. Copying them with the addon folder preserves standalone operation.
@@ -17,7 +17,7 @@ Losing focus opens an overlay; hidden scenes do not accept shortcuts.
 Open `demo.tscn` from this folder in Godot and press F6, or use PowerShell:
 
 ```powershell
-& 'C:\Games\steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe' --path 'C:\Documents\Zuma\zuma-health' --scene res://addons/zuma_minigames/demo.tscn
+& 'C:\path\to\godot.exe' --path . --scene res://addons/zuma_minigames/demo.tscn
 ```
 
 In the demo, select a game/difficulty, create or select a server profile,

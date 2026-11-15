@@ -47,9 +47,8 @@ and verify the wording against the current submission form.
 
 This is a draft, not a submitted entry. The team must supply and verify its own
 team details, final project URL, public access, source and asset permissions,
-AI disclosure and demonstration. The current application interface is in
-Russian; prepare an English project page and, if the demo is in Russian,
-English captions where required by the current rules. Check the current
+AI disclosure and demonstration. The current application interface and project documentation are in English.
+Prepare an English demonstration and captions where required by the current rules. Check the current
 [submission guide](https://www.spaceappschallenge.org/resources/project-submission-guide/)
 and the chosen local event's rules and deadlines before submitting. The
 [2026 event page](https://www.spaceappschallenge.org/2026/) states that project
