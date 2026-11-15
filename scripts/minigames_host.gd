@@ -53,7 +53,7 @@ func _ready() -> void:
 		var card_column := VBoxContainer.new()
 		card.add_child(card_column)
 		var launch := _add_button(card_column, item[1], _launch.bind(item[0]))
-		launch.icon = load("res://assets/icons/%s.svg" % item[0])
+		launch.icon = load("res://addons/zuma_minigames/icons/%s.svg" % item[0])
 		launch.add_theme_constant_override("h_separation", 14)
 		launch.custom_minimum_size.y = 64
 		_add_label(card_column, {"fifteen": "Solve the 4×4 board", "pairs": "Memorize the cards", "math": "Beat the timer", "chimp": "Recall the order"}[item[0]], 15)

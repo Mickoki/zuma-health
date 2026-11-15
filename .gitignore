@@ -16,3 +16,5 @@ server/data/
 *.test
 *.gguf
 server/coverage.out
+
+dist/

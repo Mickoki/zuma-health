@@ -81,7 +81,7 @@ var minigames_host: Control
 
 func _ready() -> void:
 	TranslationServer.set_locale("en")
-	theme = preload("res://theme/zuma_theme.tres")
+	theme = preload("res://addons/zuma_minigames/theme.tres")
 	session_queue = SessionQueue.new()
 	session_queue.api_url = api_url
 	session_queue.queue_dir = queue_path
@@ -137,7 +137,7 @@ func build_shell() -> void:
 	header.add_theme_constant_override("separation", 16)
 	root_column.add_child(header)
 	var logo := TextureRect.new()
-	logo.texture = preload("res://assets/icons/zuma.svg")
+	logo.texture = preload("res://addons/zuma_minigames/icons/zuma.svg")
 	logo.custom_minimum_size = Vector2(32, 32)
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	header.add_child(logo)

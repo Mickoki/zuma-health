@@ -130,4 +130,4 @@ and check the history. Do not combine WAL files from different backups.
 
 Migrations are embedded, transactional, and run at startup. An older server
 rejects a newer schema. Back up before upgrading.
-Verification results: [verification.md](docs/verification.md).
+Verification commands: [testing guide](../docs/testing.md).

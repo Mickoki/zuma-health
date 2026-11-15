@@ -6,7 +6,7 @@ delivery to the Go API. The application's main menu is unchanged.
 
 The module includes its own SVG icons, theme, and lightweight orbital-background
 shader. Copying them with the addon folder preserves standalone operation.
-The main application uses a theme copy at `theme/zuma_theme.tres`.
+The main application shares the theme at `addons/zuma_minigames/theme.tres`.
 Timers use a system monospaced font (JetBrains Mono, Consolas, or DejaVu Sans Mono);
 startup requires neither internet access nor font downloads.
 R restarts the game, Esc goes back, and 1–4 selects an answer in Speed Math.
