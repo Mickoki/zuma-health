@@ -143,6 +143,7 @@ The [testing guide](docs/testing.md) covers client checks, game rules, export va
 - [Embed the Godot module](addons/zuma_minigames/README.md)
 - [Legacy game integration](docs/game-integration.md)
 - [Research background](RESEARCH.md) and [Space Apps project description](docs/space-apps-submission-en.md)
+- [Project Pitch Deck (Google Slides)](https://docs.google.com/presentation/d/1oFyLNCexba2ybygzsPalQympIT0nYYsWJ-4rvEwf87M/edit?usp=sharing)
 
 ## License
 
