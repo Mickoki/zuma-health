@@ -1,5 +1,9 @@
 # Zuma
 
+The interface uses concise labels, rules before each game, and one foreground
+disclaimer. Profile management can be expanded from Overview; local storage
+diagnostics are under Help. [UI cleanup checks](docs/interface-cleanup-verification.md).
+
 The interface, reports, model-selected fact text, source comments, test fixtures,
 and project documentation are in English. Start the updated client **and**
 server to use the English version. Existing profile names and saved user data

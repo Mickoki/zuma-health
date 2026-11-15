@@ -6,10 +6,10 @@ const Rules = preload("res://addons/zuma_minigames/core/rules.gd")
 const Generator = preload("res://addons/zuma_minigames/core/generator.gd")
 const TITLES: Dictionary = {"fifteen": "Fifteen Puzzle", "pairs": "Find the Pair", "math": "Speed Math", "chimp": "Remember the Numbers"}
 const INSTRUCTIONS: Dictionary = {
-	"fifteen": "Arrange numbers 1–15 in order. Select a tile next to the empty space. Time and moves are recorded.",
-	"pairs": "Memorize the face-up cards. Once hidden, reveal two at a time to find matching symbols.",
-	"math": "Choose the correct answer. Up to 20 different questions in 60 seconds. Answers at the time limit are not accepted.",
-	"chimp": "Memorize the numbered cells. Select them in ascending order: after selecting 1, the remaining numbers disappear."
+	"fifteen": "Arrange 1–15 in order by sliding tiles into the empty space.",
+	"pairs": "Memorize the cards, then reveal matching pairs.",
+	"math": "Choose the correct answer before time runs out.",
+	"chimp": "Memorize the numbers and select them in order. They disappear after 1."
 }
 @export_enum("fifteen", "pairs", "math", "chimp") var game_id: String = "fifteen"
 var difficulty: String = "easy"
@@ -30,6 +30,7 @@ var interruption_message: Label
 var feedback_label: Label
 var back_button: Button
 var game_actions: HBoxContainer
+var disclaimer_label: Label
 var _started_at: int = 0
 var _emitted: bool = false
 
@@ -68,7 +69,8 @@ func _ready() -> void:
 	source_label.add_theme_color_override("font_color", Color("f59e0b") if source == "synthetic" else Color("10b981"))
 	heading_row.add_child(source_label)
 	help_label = Label.new()
-	help_label.text = INSTRUCTIONS[game_id] + " Losing window focus interrupts the attempt."
+	help_label.text = INSTRUCTIONS[game_id] + " Switching windows ends the attempt."
+	help_label.tooltip_text = "Losing window focus interrupts the attempt."
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	help_label.add_theme_font_size_override("font_size", 15)
 	column.add_child(help_label)
@@ -112,6 +114,7 @@ func _ready() -> void:
 	back_button.tooltip_text = "Back · Esc"
 	skip_button.tooltip_text = "Skip question"
 	var disclaimer := Label.new()
+	disclaimer_label = disclaimer
 	disclaimer.text = "Results describe task performance and are not a diagnosis."
 	disclaimer.add_theme_font_size_override("font_size", 12)
 	disclaimer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -127,10 +130,10 @@ func _ready() -> void:
 func _parameters() -> String:
 	var c: Dictionary = generator.defaults(game_id, difficulty)
 	match game_id:
-		"fifteen": return "4×4 board · Shuffle: %d moves" % c.shuffle_moves
-		"pairs": return "%d pairs · Preview %.1f s · Mismatch pause 0.7 s" % [c.pairs, c.preview_ms / 1000.0]
-		"math": return "20 questions · 60 seconds · Up to %.1f s per question" % (c.question_limit_ms / 1000.0)
-		"chimp": return "From %d to %d numbers · Mistakes allowed: %d" % [c.start_count, c.target_count, c.mistake_limit]
+		"fifteen": return "4×4 board"
+		"pairs": return "%d pairs · %.1f s preview" % [c.pairs, c.preview_ms / 1000.0]
+		"math": return "20 questions · 60 s · %.1f s each" % (c.question_limit_ms / 1000.0)
+		"chimp": return "%d–%d numbers · %d mistakes allowed" % [c.start_count, c.target_count, c.mistake_limit]
 	return ""
 
 func elapsed() -> int:
@@ -139,6 +142,10 @@ func elapsed() -> int:
 func _start() -> void:
 	interruption_overlay.visible = false
 	game_actions.visible = true
+	disclaimer_label.visible = true
+	help_label.visible = false
+	stats.visible = true
+	result_label.visible = true
 	feedback_label.visible = false
 	session = Rules.new(game_id, difficulty, generator)
 	session.source = source
@@ -252,22 +259,28 @@ func _finish_once() -> void:
 	if session == null or not session.done or _emitted:
 		return
 	_emitted = true
+	stats.visible = false
 	help_label.visible = false
 	question_label.visible = false
 	skip_button.visible = false
 	next_button.visible = false
 	feedback_label.visible = false
 	var reasons: Dictionary = {"solved": "Puzzle solved", "questions_done": "All questions completed", "time_limit": "Time is up", "target_reached": "Target level reached", "mistake_limit": "Mistake limit reached", "user_exit": "Left the game", "focus_lost": "Window lost focus", "host_removed": "Module closed", "recording_limit": "Recording limit reached"}
-	result_label.text = {"completed": "Completed", "failed": "Game over", "aborted": "Attempt interrupted"}[session.result.status] + " · " + reasons.get(session.result.finish_reason, "") + "\n"
+	result_label.text = reasons.get(session.result.finish_reason, "Completed") + "\n"
 	var parts: PackedStringArray = []
 	for key in session.summary():
-		parts.append("%s: %s" % [key, session.summary()[key]])
+		if key == "Duration, ms":
+			parts.append("Time: %.1f s" % (session.result.duration_ms / 1000.0))
+		else:
+			parts.append("%s: %s" % [key, session.summary()[key]])
 	result_label.text += " · ".join(parts)
 	run_finished.emit(session.result.duplicate(true))
 	if session.result.finish_reason == "focus_lost":
 		interruption_message.text = "Attempt interrupted — Window lost focus\nDuration: %d ms" % session.result.duration_ms
 		interruption_overlay.visible = true
 		game_actions.visible = false
+		disclaimer_label.visible = false
+		result_label.visible = false
 		interruption_overlay.find_child("ResumeRestart", true, false).grab_focus()
 
 func cancel(reason: String = "user_exit") -> void:

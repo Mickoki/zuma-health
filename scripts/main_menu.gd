@@ -141,7 +141,7 @@ func build_shell() -> void:
 	logo.custom_minimum_size = Vector2(32, 32)
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	header.add_child(logo)
-	var brand := label("ZUMA / MISSION HEALTH", 21, ACCENT)
+	var brand := label("ZUMA", 21, ACCENT)
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(brand)
 	status_label = label("Checking server…", 14, MUTED)
@@ -163,7 +163,6 @@ func build_shell() -> void:
 	var nav := VBoxContainer.new()
 	nav.add_theme_constant_override("separation", 6)
 	sidebar.add_child(nav)
-	nav.add_child(label("FLIGHT DECK", 12, MUTED))
 	navigation_buttons = {"home": button("Overview", show_home), "survey": button("Wellbeing", show_survey), "games": button("Games", show_minigames), "history": button("History", show_history), "trends": button("Trends", show_trends), "help": button("Help", show_help)}
 	for nav_button in navigation_buttons.values():
 		nav_button.custom_minimum_size.y = 40
@@ -171,7 +170,6 @@ func build_shell() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nav.add_child(spacer)
-	nav.add_child(label("LOCAL\nAPPLICATION", 12, MUTED))
 	nav.add_child(button("Exit", func(): get_tree().quit()))
 	profile_picker = OptionButton.new()
 	profile_picker.custom_minimum_size = Vector2(210, 44)
@@ -243,24 +241,32 @@ func card() -> VBoxContainer:
 
 func show_home() -> void:
 	clear_content("home")
-	content.add_child(label("Your wellbeing during the mission", 34))
-	content.add_child(label("Small, regular check-ins help reveal changes over time.", 17, MUTED))
+	content.add_child(label("Overview", 34))
 	home_queue_warning = VBoxContainer.new()
 	home_queue_warning.add_theme_constant_override("separation", 8)
 	content.add_child(home_queue_warning)
 	if not selected_profile.is_empty():
 		var latest := card()
-		latest.add_child(label("LEGACY CHECK-IN  /  " + str(selected_profile.display_name), 14, ACCENT))
 		home_latest_section = VBoxContainer.new()
 		home_latest_section.add_theme_constant_override("separation", 10)
+		latest.add_child(button("Latest check-in", func(): home_latest_section.visible = not home_latest_section.visible))
 		latest.add_child(home_latest_section)
+		home_latest_section.visible = false
 		var game_latest := card()
-		game_latest.add_child(label("LATEST GAME  /  " + str(selected_profile.display_name), 14, ACCENT))
+		game_latest.add_child(label("Latest game", 18, ACCENT))
 		home_game_latest_section = VBoxContainer.new()
 		game_latest.add_child(home_game_latest_section)
 	var intro := card()
-	intro.add_child(label("01  /  CREW PROFILE", 14, ACCENT))
-	intro.add_child(label("Select a profile above or create a new one", 21))
+	if not selected_profile.is_empty():
+		var profile_controls := VBoxContainer.new()
+		profile_controls.add_theme_constant_override("separation", 10)
+		var toggle := button("Manage profiles", func(): profile_controls.visible = not profile_controls.visible)
+		intro.add_child(toggle)
+		intro.add_child(profile_controls)
+		profile_controls.visible = false
+		intro = profile_controls
+	else:
+		intro.add_child(label("Create your profile", 21))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	intro.add_child(row)
@@ -273,27 +279,12 @@ func show_home() -> void:
 	row.add_child(button("Create profile", func() -> void: create_profile(name_input.text), true))
 	intro.add_child(button("Refresh connection and profiles", func() -> void: refresh_profiles(selected_profile.get("id", ""))))
 	var next := card()
-	next.add_child(label("02  /  DAILY CHECK-IN", 14, ACCENT))
-	next.add_child(label("Wellbeing → game tasks → report", 21))
-	next.add_child(button("Go to mini-games", show_minigames, true))
-	var storage_result := label("", 14, MUTED)
-	next.add_child(button("Check local storage", func():
-		var file := FileAccess.open("user://setup_check.json", FileAccess.WRITE)
-		if file == null:
-			storage_result.text = "Save error: %d" % FileAccess.get_open_error()
-			return
-		file.store_string(JSON.stringify({"setup": "ok", "time": Time.get_datetime_string_from_system(true)}))
-		file.flush()
-		var error := file.get_error()
-		file.close()
-		storage_result.text = "Record saved: setup_check.json" if error == OK else "Save error: %d" % error
-	))
-	next.add_child(storage_result)
-	next.add_child(label("Save the survey and choose a game. A copy of the survey will be attached to each new run.", 16, MUTED))
+	next.get_parent().visible = not selected_profile.is_empty()
+	next.add_child(label("Daily check-in", 21))
 	next.add_child(button("Complete survey  →", show_survey, true))
+	next.add_child(button("Go to mini-games", show_minigames))
 	var history := card()
-	history.add_child(label("03  /  MISSION HISTORY", 14, ACCENT))
-	history.add_child(label("View game runs and legacy check-ins for the selected profile.", 16, MUTED))
+	history.get_parent().visible = not selected_profile.is_empty()
 	history.add_child(button("Open game history", show_minigames))
 	history.add_child(button("Legacy check-in history", show_history))
 	home_pending_section = VBoxContainer.new()
@@ -403,7 +394,6 @@ func show_survey() -> void:
 	clear_content("survey")
 	survey_inputs.clear()
 	content.add_child(label("How are you feeling?", 34))
-	content.add_child(label("Complete every field. Unsaved input remains available while the app is open; a saved draft is stored on this device for the selected profile.", 16, MUTED))
 	if selected_profile.is_empty():
 		content.add_child(label("First select or create a profile on Overview.", 18, ACCENT))
 		return
@@ -422,7 +412,9 @@ func show_survey() -> void:
 	if games_available():
 		form.add_child(button("Start game tasks →", start_game_run))
 	else:
-		form.add_child(label("Save the survey, then open Games. Its saved copy will be attached to each run.", 15, MUTED))
+		var next_step := label("Save your survey before playing.", 15, MUTED)
+		next_step.tooltip_text = "The saved survey is attached to each new game. Update it if your wellbeing changes."
+		form.add_child(next_step)
 
 func show_minigames() -> void:
 	if selected_profile.is_empty():
@@ -833,7 +825,6 @@ func show_help(origin: String = "", session_id: String = "") -> void:
 	var profile_id: String = selected_profile.get("id", "")
 	clear_content("help")
 	content.add_child(label("How to use Zuma", 34))
-	content.add_child(label("This brief help is available offline. This is a monitoring prototype, not medical advice.", 16, MUTED))
 	var why := card()
 	why.add_child(label("Why these metrics?", 21, ACCENT))
 	why.add_child(label("NASA studies how sleep loss and circadian disruption affect fatigue and task performance [1]. Isolation and confinement can also affect cognitive and behavioral functions [2]. These sources provide context but do not establish the medical validity of Zuma tasks.", 16, MUTED))
@@ -861,6 +852,20 @@ func show_help(origin: String = "", session_id: String = "") -> void:
 	sources.add_child(button("[1] NASA: sleep and performance ↗", func() -> void: OS.shell_open(NASA_SLEEP_URL)))
 	sources.add_child(button("[2] NASA: behavioral and cognitive risks ↗", func() -> void: OS.shell_open(NASA_BEHAVIOR_URL)))
 	sources.add_child(button("NASA Space Apps challenge ↗", func() -> void: OS.shell_open(NASA_CHALLENGE_URL)))
+	var diagnostics := card()
+	var storage_result := label("", 14, MUTED)
+	diagnostics.add_child(button("Check local storage", func():
+		var file := FileAccess.open("user://setup_check.json", FileAccess.WRITE)
+		if file == null:
+			storage_result.text = "Save error: %d" % FileAccess.get_open_error()
+			return
+		file.store_string(JSON.stringify({"setup": "ok", "time": Time.get_datetime_string_from_system(true)}))
+		file.flush()
+		var error := file.get_error()
+		file.close()
+		storage_result.text = "Record saved: setup_check.json" if error == OK else "Save error: %d" % error
+	))
+	diagnostics.add_child(storage_result)
 	if origin in ["survey", "report", "trends"]:
 		content.add_child(button("Return", func() -> void:
 			if selected_profile.get("id", "") != profile_id:
@@ -885,7 +890,6 @@ func show_trends() -> void:
 		content.add_child(label("Select a profile to view trends.", 17, MUTED))
 		return
 	var profile_id: String = selected_profile.id
-	content.add_child(label("Profile: " + str(selected_profile.display_name) + " • Results are not a medical assessment.", 16, MUTED))
 	var loading := label("Loading check-ins…", 16, MUTED)
 	content.add_child(loading)
 	var response := await request(HTTPClient.METHOD_GET, "/api/v1/profiles/%s/sessions?limit=100&offset=0" % profile_id)
@@ -951,7 +955,8 @@ func build_trend_view() -> void:
 	section.add_child(trend_retry)
 	trend_dates = label("", 14, MUTED)
 	section.add_child(trend_dates)
-	trend_order = label("Older check-ins are on the left, newer ones on the right. Equal spacing does not represent elapsed time; missing values are not connected.", 14, MUTED)
+	trend_order = label("Oldest → Newest", 14, MUTED)
+	trend_order.tooltip_text = "Spacing shows check-in order, not elapsed time. Gaps are not connected."
 	section.add_child(trend_order)
 	trend_chart = SurveyChart.new()
 	section.add_child(trend_chart)
@@ -1138,12 +1143,10 @@ func show_history() -> void:
 	report_trail.clear()
 	var revision := page_revision
 	content.add_child(label("Reaction and memory check-in history", 34))
-	content.add_child(label("History for the four games is available under Games.", 16, MUTED))
 	if selected_profile.is_empty():
 		content.add_child(label("Select a profile to view its history.", 17, MUTED))
 		content.add_child(button("Check connection", func() -> void: refresh_profiles()))
 		return
-	content.add_child(label("Profile: " + str(selected_profile.display_name), 16, MUTED))
 	var profile_id: String = selected_profile.id
 	if profile_id != history_profile_id:
 		history_profile_id = profile_id

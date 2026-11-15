@@ -34,9 +34,9 @@ func _ready() -> void:
 	menu.add_theme_constant_override("separation", 12)
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
-	_add_label(menu, "ZUMA / MINI-GAMES", 26)
-	_add_label(menu, "Choose a difficulty and task. Your saved survey is attached to each run; update it if your wellbeing changes. Results are not a diagnosis.", 16)
+	_add_label(menu, "Games", 26)
 	level = OptionButton.new()
+	level.tooltip_text = "Difficulty. Your saved survey is attached to each run."
 	for title in ["Easy", "Normal", "Hard"]:
 		level.add_item(title)
 	level.select(1)
@@ -97,7 +97,8 @@ func open_for_profile(profile: Dictionary, url: String, survey: Dictionary) -> b
 	if survey.is_empty():
 		_update_status("To start a game, return to the app and save a survey. History remains available.")
 	else:
-		_update_status("Profile: %s. Total queued on this device: %d" % [profile.get("display_name", ""), module.pending_count()])
+		var pending: int = module.pending_count()
+		_update_status("Profile: " + str(profile.get("display_name", "")) + (" · %d pending" % pending if pending > 0 else ""))
 	return true
 
 func _launch(game: String) -> void:

@@ -44,7 +44,8 @@ func _ready() -> void:
 	content.add_theme_constant_override("separation", 14)
 	menu.add_child(content)
 	var intro := Label.new()
-	intro.text = "Choose a task\nYou can play without a server connection."
+	intro.text = "Choose a game"
+	intro.tooltip_text = "Games work offline. Unsent results are saved locally."
 	intro.add_theme_font_size_override("font_size", 23)
 	content.add_child(intro)
 	var level_row := HBoxContainer.new()
@@ -90,7 +91,8 @@ func _ready() -> void:
 	status = Label.new()
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 15)
-	status.text = "Select a profile for new games. Earlier local results are linked using a separate button."
+	status.text = ""
+	status.tooltip_text = "Select a profile for new games. Earlier local results are linked using a separate button."
 	content.add_child(status)
 	var note := Label.new()
 	note.text = "Task results are not a medical diagnosis."
@@ -212,6 +214,7 @@ func _delivery(_id: String, state: String, message: String) -> void:
 
 func _refresh_count() -> void:
 	queue_label.text = "Pending uploads: %d" % module.pending_count()
+	queue_label.visible = module.pending_count() > 0
 
 func _button(parent: Node, text: String, callback: Callable) -> void:
 	var button := Button.new()
