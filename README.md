@@ -8,7 +8,7 @@
 
 **Godot desktop app · Go API · SQLite · Optional local AI**
 
-[Get started](#quick-start) · [Games](#four-games-one-workflow) · [Architecture](docs/architecture.md) · [API](server/docs/openapi.yaml) · [Build for Windows](#windows-build)
+[Get started](#quick-start) · [Games](#four-games-one-workflow) · [Architecture](docs/architecture.md) · [API](server/docs/openapi.yaml) · [Build for Windows](#windows-build) · [Presentation](https://docs.google.com/presentation/d/1oFyLNCexba2ybygzsPalQympIT0nYYsWJ-4rvEwf87M/edit?usp=sharing)
 
 ![Godot](https://img.shields.io/badge/Godot-4.7-478CBF?logo=godotengine&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
